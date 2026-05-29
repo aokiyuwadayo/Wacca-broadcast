@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type {
   BroadcastJson,
   BroadcastKind,
@@ -31,6 +31,7 @@ export default function Home() {
   const [tab, setTab] = useState<PlatformKey>("line");
   const [refine, setRefine] = useState("");
   const [copied, setCopied] = useState<PlatformKey | null>(null);
+  const [preview, setPreview] = useState(false); // 開発時に演出を眺めるためのプレビュー
 
   // 入力方法（メモ書き / フォーム）と、フォーム入力の中身
   const [inputMode, setInputMode] = useState<"memo" | "form">("memo");
@@ -246,6 +247,9 @@ export default function Home() {
         )}
       </section>
 
+      {/* 生成中の小ネタ演出 */}
+      {(loading || preview) && <GeneratingShow />}
+
       {result && (
         <>
           {/* 不足項目（ガイド） */}
@@ -354,6 +358,20 @@ export default function Home() {
 
       <footer className="mt-8 text-center text-xs text-slate-400">
         YUWA Broadcast · Phase A · 設計は docs/design-doc.md
+        {process.env.NODE_ENV === "development" && (
+          <>
+            {" · "}
+            <button
+              onClick={() => {
+                setPreview(true);
+                setTimeout(() => setPreview(false), 6000);
+              }}
+              className="underline hover:text-brand"
+            >
+              🎬 演出プレビュー
+            </button>
+          </>
+        )}
       </footer>
     </main>
   );
@@ -471,5 +489,80 @@ function Field({
         className="mt-1 w-full rounded-lg border border-slate-300 p-2 text-sm focus:border-brand focus:outline-none"
       />
     </div>
+  );
+}
+
+// ===== 生成中の小ネタ演出（待ち時間を退屈させない） =====
+const LOADING_EMOJI = ["✍️", "🤔", "🧠", "✨", "📝", "🎨", "🔧", "🚀", "💡", "🍵", "🎯", "📣", "🔥", "🙌"];
+
+const LOADING_MESSAGES = [
+  "AIが言葉を選んでます…",
+  "いちばん刺さる一言を探し中…",
+  "絵文字を厳選しています…",
+  "LINE版をキュッと短くまとめ中…",
+  "Teams版を整理整頓中…",
+  "部員が「行きたい！」となる文を調合中…",
+  "てにをは を微調整しています…",
+  "熱量を 3% 上げています…",
+  "改行の位置で本気で悩んでいます…",
+  "ちょうどいい敬語を計算中…",
+  "誤字を未然に防いでいます…",
+  "読みやすさをコネコネ中…",
+  "「！」の数を最適化しています…",
+  "部長の気持ちを代弁中…",
+  "語尾をフレンドリーに寄せています…",
+  "見出しを立てています…",
+  "スクロールしたくなる構成を設計中…",
+  "もうひと味、足しています…",
+  "サークルの空気感を読み取り中…",
+  "あと少し、いい感じになってきた…",
+];
+
+const TRIVIA = [
+  "豆知識：告知は『日時・場所』が頭にあると参加率が上がりやすい。",
+  "豆知識：絵文字は1行に1〜2個が読みやすさのバランス◎。",
+  "豆知識：人は『自分ごと』だと感じた瞬間に動く。だから“あなたに”が効く。",
+  "豆知識：締切や人数を書くと、そっと背中を押せる。",
+  "ひとこと：完璧を待つより、まず出すこと。",
+  "豆知識：LINEの長文は3秒で閉じられがち。短さは優しさ。",
+  "起業メモ：アイデアは『誰の・何を・解決するか』から。",
+  "豆知識：見出しがあるだけで“読む気”は倍ちがう。",
+  "ひとこと：迷ったら、いちばん伝えたい1行を先頭に。",
+  "豆知識：絵文字の使いすぎは逆に読みにくい。引き算も大事。",
+  "今日のラッキー絵文字：🍀",
+  "豆知識：告知の最後に『来てね』があると、一歩踏み出しやすい。",
+  "ひとこと：いい告知は、書いた人の熱が少しだけ伝わる。",
+  "豆知識：箇条書きは3つまでが一番スッと入る。",
+];
+
+function GeneratingShow() {
+  const [tick, setTick] = useState(0);
+  // 生成のたびに開始位置と豆知識をランダムに → 毎回ちょっと違って飽きない
+  const [start] = useState(() => Math.floor(Math.random() * LOADING_MESSAGES.length));
+  const [trivia] = useState(() => TRIVIA[Math.floor(Math.random() * TRIVIA.length)]);
+
+  useEffect(() => {
+    const id = setInterval(() => setTick((t) => t + 1), 1800);
+    return () => clearInterval(id);
+  }, []);
+
+  const msg = LOADING_MESSAGES[(start + tick) % LOADING_MESSAGES.length];
+  const emoji = LOADING_EMOJI[(start + tick) % LOADING_EMOJI.length];
+
+  return (
+    <section className="mt-4 rounded-xl bg-white p-6 text-center shadow-sm ring-1 ring-slate-200">
+      <div className="animate-bounce text-5xl">{emoji}</div>
+      <p className="mt-3 text-sm font-medium text-slate-700">{msg}</p>
+      <div className="mt-2 flex justify-center gap-1">
+        {[0, 1, 2].map((d) => (
+          <span
+            key={d}
+            className="h-1.5 w-1.5 animate-pulse rounded-full bg-brand"
+            style={{ animationDelay: `${d * 0.2}s` }}
+          />
+        ))}
+      </div>
+      <p className="mt-4 text-xs text-slate-400">{trivia}</p>
+    </section>
   );
 }
