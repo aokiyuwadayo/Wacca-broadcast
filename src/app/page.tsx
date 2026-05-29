@@ -649,11 +649,43 @@ function EmojiShow() {
   );
 }
 
+// 🌊 全画面：波がせり上がって攫い、また引く
+function WaveLayer() {
+  return (
+    <div className="pointer-events-none absolute inset-0">
+      {[0, 1].map((i) => (
+        <div
+          key={i}
+          className="absolute inset-x-0 bottom-0 h-[140%]"
+          style={{
+            animation: `yb-wave-rise ${3 + i * 0.8}s ease-in-out ${i * 0.4}s infinite`,
+          }}
+        >
+          <svg
+            viewBox="0 0 1440 320"
+            preserveAspectRatio="none"
+            className="h-full w-full"
+          >
+            <path
+              fill={i === 0 ? "#38bdf8" : "#0ea5e9"}
+              fillOpacity={i === 0 ? 0.35 : 0.28}
+              d="M0,160 C240,260 480,60 720,140 C960,220 1200,80 1440,150 L1440,320 L0,320 Z"
+            />
+          </svg>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 const VISUALS = [BottleShow, ToiletPaperShow, TimerShow, EmojiShow];
+const SCENES = ["icon", "wave", "mosaic"] as const;
+type Scene = (typeof SCENES)[number];
 
 function GeneratingShow() {
   const [tick, setTick] = useState(0);
-  // 生成のたびに「演出ビジュアル・メッセージ開始位置・豆知識」をランダムに → 毎回ちょっと違って飽きない
+  // 生成のたびに「シーン・演出ビジュアル・メッセージ開始位置・豆知識」をランダムに → 毎回ちょっと違って飽きない
+  const [scene] = useState<Scene>(() => SCENES[Math.floor(Math.random() * SCENES.length)]);
   const [Visual] = useState(() => VISUALS[Math.floor(Math.random() * VISUALS.length)]);
   const [start] = useState(() => Math.floor(Math.random() * LOADING_MESSAGES.length));
   const [trivia] = useState(() => TRIVIA[Math.floor(Math.random() * TRIVIA.length)]);
@@ -664,27 +696,40 @@ function GeneratingShow() {
   }, []);
 
   const msg = LOADING_MESSAGES[(start + tick) % LOADING_MESSAGES.length];
+  // mosaic シーンは中身全体がぼやけ→鮮明を繰り返す
+  const contentStyle =
+    scene === "mosaic"
+      ? { animation: "yb-defocus 2.6s ease-in-out infinite" }
+      : undefined;
 
   return (
     <div
-      className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-gradient-to-b from-white/90 to-indigo-50/90 backdrop-blur-md"
+      className="fixed inset-0 z-50 flex flex-col items-center justify-center overflow-hidden bg-gradient-to-b from-white/90 to-indigo-50/90 backdrop-blur-md"
       style={{ animation: "yb-fade 0.3s ease" }}
     >
-      <p className="mb-6 text-xs font-semibold uppercase tracking-widest text-brand">
-        生成中
-      </p>
-      <div className="flex h-32 scale-125 items-center justify-center">
-        <Visual />
-      </div>
-      {/* メッセージ（key で切り替えのたびにふわっと） */}
-      <p
-        key={tick}
-        className="mt-6 text-base font-semibold text-slate-700"
-        style={{ animation: "yb-fade 0.4s ease" }}
+      {scene === "wave" && <WaveLayer />}
+      <div
+        className="relative z-10 flex flex-col items-center"
+        style={contentStyle}
       >
-        {msg}
-      </p>
-      <p className="mt-3 max-w-xs text-center text-xs text-slate-400">{trivia}</p>
+        <p className="mb-6 text-xs font-semibold uppercase tracking-widest text-brand">
+          生成中
+        </p>
+        {scene === "icon" && (
+          <div className="mb-6 flex h-32 scale-125 items-center justify-center">
+            <Visual />
+          </div>
+        )}
+        {/* メッセージ（key で切り替えのたびにふわっと） */}
+        <p
+          key={tick}
+          className="text-base font-semibold text-slate-700"
+          style={{ animation: "yb-fade 0.4s ease" }}
+        >
+          {msg}
+        </p>
+        <p className="mt-3 max-w-xs text-center text-xs text-slate-400">{trivia}</p>
+      </div>
     </div>
   );
 }

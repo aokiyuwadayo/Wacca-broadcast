@@ -45,3 +45,15 @@ body {
   from { stroke-dashoffset: 0; }
   to { stroke-dashoffset: 100; }
 }
+/* 演出：波がせり上がって攫い、また引く */
+@keyframes yb-wave-rise {
+  0% { transform: translateY(55%); }
+  50% { transform: translateY(-8%); }
+  100% { transform: translateY(55%); }
+}
+/* 演出：モザイク風にぼやけて鮮明に戻る（脈打つ） */
+@keyframes yb-defocus {
+  0% { filter: blur(12px); opacity: 0.5; }
+  50% { filter: blur(0px); opacity: 1; }
+  100% { filter: blur(12px); opacity: 0.5; }
+}
