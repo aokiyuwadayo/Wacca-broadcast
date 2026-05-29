@@ -649,29 +649,58 @@ function EmojiShow() {
   );
 }
 
-// 🌊 全画面：波がせり上がって攫い、また引く（3層＋横揺れで奥行き）
+// 🌊 全画面：波がせり上がって攫い、また引く
+// 各層 = 同一波形を2枚横並び → translateX -50% でシームレスに流れ続ける（パララックス）
+// 波形は左端と右端の y を揃えてあるので継ぎ目が出ない
 const WAVE_LAYERS = [
-  { fill: "#7dd3fc", op: 0.3, rise: 3.8, delay: 0, sway: 6, d: "M0,170 C180,230 340,110 540,150 C740,190 900,250 1080,210 C1260,170 1380,195 1440,180 L1440,320 L0,320 Z" },
-  { fill: "#38bdf8", op: 0.34, rise: 3.1, delay: 0.3, sway: 8, d: "M0,150 C200,210 380,120 560,160 C760,205 940,130 1120,170 C1300,205 1390,150 1440,165 L1440,320 L0,320 Z" },
-  { fill: "#0284c7", op: 0.3, rise: 2.6, delay: 0.6, sway: 7, d: "M0,185 C160,150 360,235 560,195 C780,150 960,235 1140,200 C1320,170 1400,205 1440,190 L1440,320 L0,320 Z" },
+  { id: "a", from: "#bae6fd", to: "#7dd3fc", op: 0.45, rise: 4.2, delay: 0, flow: 9, foam: 0, d: "M0,150 C240,110 480,190 720,150 C960,110 1200,190 1440,150 L1440,320 L0,320 Z" },
+  { id: "b", from: "#7dd3fc", to: "#38bdf8", op: 0.5, rise: 3.4, delay: 0.3, flow: 6.5, foam: 0.35, d: "M0,170 C240,216 480,124 720,170 C960,216 1200,124 1440,170 L1440,320 L0,320 Z" },
+  { id: "c", from: "#38bdf8", to: "#0284c7", op: 0.6, rise: 2.8, delay: 0.6, flow: 4.5, foam: 0.45, d: "M0,188 C240,162 480,214 720,188 C960,162 1200,214 1440,188 L1440,320 L0,320 Z" },
 ];
 
 function WaveLayer() {
   return (
     <div className="pointer-events-none absolute inset-0 overflow-hidden">
-      {WAVE_LAYERS.map((l, i) => (
+      {/* グラデーション定義（1回だけ） */}
+      <svg className="absolute h-0 w-0">
+        <defs>
+          {WAVE_LAYERS.map((l) => (
+            <linearGradient key={l.id} id={`yb-grad-${l.id}`} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={l.from} />
+              <stop offset="100%" stopColor={l.to} />
+            </linearGradient>
+          ))}
+        </defs>
+      </svg>
+      {WAVE_LAYERS.map((l) => (
         <div
-          key={i}
-          className="absolute -left-[8%] -right-[8%] bottom-0 h-[150%]"
+          key={l.id}
+          className="absolute -left-[4%] -right-[4%] bottom-0 h-[160%]"
           style={{ animation: `yb-wave-rise ${l.rise}s ease-in-out ${l.delay}s infinite` }}
         >
           <div
-            className="h-full w-full"
-            style={{ animation: `yb-wave-sway ${l.sway}s ease-in-out infinite` }}
+            className="flex h-full w-[200%]"
+            style={{ animation: `yb-wave-flow ${l.flow}s linear infinite` }}
           >
-            <svg viewBox="0 0 1440 320" preserveAspectRatio="none" className="h-full w-full">
-              <path fill={l.fill} fillOpacity={l.op} d={l.d} />
-            </svg>
+            {[0, 1].map((c) => (
+              <svg
+                key={c}
+                viewBox="0 0 1440 320"
+                preserveAspectRatio="none"
+                className="h-full w-1/2"
+              >
+                <path d={l.d} fill={`url(#yb-grad-${l.id})`} fillOpacity={l.op} />
+                {l.foam > 0 && (
+                  <path
+                    d={l.d.split(" L1440")[0]}
+                    fill="none"
+                    stroke="#ffffff"
+                    strokeOpacity={l.foam}
+                    strokeWidth="3"
+                  />
+                )}
+              </svg>
+            ))}
           </div>
         </div>
       ))}
