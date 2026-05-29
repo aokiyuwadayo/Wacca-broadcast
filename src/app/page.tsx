@@ -32,6 +32,22 @@ export default function Home() {
   const [refine, setRefine] = useState("");
   const [copied, setCopied] = useState<PlatformKey | null>(null);
 
+  // 入力方法（メモ書き / フォーム）と、フォーム入力の中身
+  const [inputMode, setInputMode] = useState<"memo" | "form">("memo");
+  const [form, setForm] = useState({
+    title: "",
+    start: "",
+    location: "",
+    summary: "",
+    body: "",
+    bring: "",
+    hook: "",
+    note: "",
+    fee: "",
+    guests: "",
+    cta: "",
+  });
+
   async function callApi(payload: Record<string, unknown>) {
     setLoading(true);
     setError(null);
@@ -73,6 +89,31 @@ export default function Home() {
     callApi({ json });
   }
 
+  // 3') フォーム入力モードから生成（フォームの項目を中間JSONに組み立てて投入）
+  const splitList = (v: string) =>
+    v.split(/[、,]/).map((s) => s.trim()).filter(Boolean);
+  function handleGenerateFromForm() {
+    if (!form.title.trim()) return;
+    const json: BroadcastJson = {
+      kind,
+      title: form.title,
+      datetime: { start: form.start, end: null },
+      location: { name: form.location, access: "", online_url: "" },
+      summary: form.summary,
+      body: splitList(form.body),
+      bring: splitList(form.bring),
+      rsvp: null,
+      fee: form.fee || null,
+      guests: splitList(form.guests),
+      cta: form.cta || null,
+      hook: form.hook,
+      note: form.note,
+      links: [],
+      images: [],
+    };
+    callApi({ json });
+  }
+
   // 4) AIに相談して修正
   function handleRefine() {
     if (!result || !refine.trim()) return;
@@ -95,45 +136,114 @@ export default function Home() {
         </p>
       </header>
 
-      {/* 種別タブ */}
-      <div className="mb-4 flex gap-2">
-        {(["activity", "event"] as BroadcastKind[]).map((k) => (
-          <button
-            key={k}
-            onClick={() => setKind(k)}
-            className={`rounded-full px-4 py-1.5 text-sm font-medium transition ${
-              kind === k
-                ? "bg-brand text-white"
-                : "bg-white text-slate-600 ring-1 ring-slate-200"
-            }`}
-          >
-            {k === "activity" ? "🗓 活動告知" : "🎤 イベント告知"}
-          </button>
-        ))}
+      {/* 切替トグル：告知の種類 ＋ 入力方法 */}
+      <div className="mb-4 space-y-3">
+        <div>
+          <span className="mb-1 block text-xs font-medium text-slate-500">
+            告知の種類
+          </span>
+          <div className="flex gap-2">
+            {(["activity", "event"] as BroadcastKind[]).map((k) => (
+              <button
+                key={k}
+                onClick={() => setKind(k)}
+                className={`rounded-full px-4 py-1.5 text-sm font-medium transition ${
+                  kind === k
+                    ? "bg-brand text-white"
+                    : "bg-white text-slate-600 ring-1 ring-slate-200"
+                }`}
+              >
+                {k === "activity" ? "🗓 活動告知" : "🎤 イベント告知"}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div>
+          <span className="mb-1 block text-xs font-medium text-slate-500">
+            入力方法
+          </span>
+          <div className="flex gap-2">
+            {(
+              [
+                ["memo", "📝 メモ書き"],
+                ["form", "🧾 フォーム入力"],
+              ] as const
+            ).map(([m, label]) => (
+              <button
+                key={m}
+                onClick={() => setInputMode(m)}
+                className={`rounded-full px-4 py-1.5 text-sm font-medium transition ${
+                  inputMode === m
+                    ? "bg-slate-900 text-white"
+                    : "bg-white text-slate-600 ring-1 ring-slate-200"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
 
-      {/* 入力 */}
+      {/* 入力エリア（メモ書き or フォーム） */}
       <section className="rounded-xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
-        <label className="mb-2 block text-sm font-medium text-slate-700">
-          ふんわりメモ（順番も体裁もぐちゃぐちゃでOK）
-        </label>
-        <textarea
-          value={rawText}
-          onChange={(e) => setRawText(e.target.value)}
-          rows={5}
-          placeholder="例：来週木曜 16:30〜 E棟3階R教室で立花祭の出展内容を決める。持ち物なし。"
-          className="w-full resize-y rounded-lg border border-slate-300 p-3 text-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
-        />
-        <div className="mt-3 flex items-center gap-3">
-          <button
-            onClick={handleGenerate}
-            disabled={loading || !rawText.trim()}
-            className="rounded-lg bg-brand px-5 py-2 text-sm font-semibold text-white disabled:opacity-40"
-          >
-            {loading ? "生成中…" : "下書きを作る"}
-          </button>
-          {error && <span className="text-sm text-red-600">{error}</span>}
-        </div>
+        {inputMode === "memo" ? (
+          <>
+            <label className="mb-2 block text-sm font-medium text-slate-700">
+              ふんわりメモ（順番も体裁もぐちゃぐちゃでOK）
+            </label>
+            <textarea
+              value={rawText}
+              onChange={(e) => setRawText(e.target.value)}
+              rows={5}
+              placeholder="例：来週木曜 16:30〜 E棟3階R教室で立花祭の出展内容を決める。持ち物なし。"
+              className="w-full resize-y rounded-lg border border-slate-300 p-3 text-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
+            />
+            <div className="mt-3 flex items-center gap-3">
+              <button
+                onClick={handleGenerate}
+                disabled={loading || !rawText.trim()}
+                className="rounded-lg bg-brand px-5 py-2 text-sm font-semibold text-white disabled:opacity-40"
+              >
+                {loading ? "生成中…" : "下書きを作る"}
+              </button>
+              {error && <span className="text-sm text-red-600">{error}</span>}
+            </div>
+          </>
+        ) : (
+          <>
+            <p className="mb-3 text-sm font-medium text-slate-700">
+              フォームで項目を入力（分かるところだけでOK）
+            </p>
+            <div className="space-y-3">
+              <Field label="タイトル" value={form.title} onChange={(v) => setForm({ ...form, title: v })} />
+              <Field label="日時（例：6/4(木) 16:30〜）" value={form.start} onChange={(v) => setForm({ ...form, start: v })} />
+              <Field label="場所" value={form.location} onChange={(v) => setForm({ ...form, location: v })} />
+              <Field label="今回やること" value={form.summary} onChange={(v) => setForm({ ...form, summary: v })} />
+              <Field label="流れ（カンマ区切り）" value={form.body} onChange={(v) => setForm({ ...form, body: v })} />
+              <Field label="持ち物（カンマ区切り）" value={form.bring} onChange={(v) => setForm({ ...form, bring: v })} />
+              <Field label="推しポイント（来たくなる一言）" value={form.hook} onChange={(v) => setForm({ ...form, hook: v })} />
+              <Field label="補足メモ" value={form.note} onChange={(v) => setForm({ ...form, note: v })} />
+              {kind === "event" && (
+                <>
+                  <Field label="参加費" value={form.fee} onChange={(v) => setForm({ ...form, fee: v })} />
+                  <Field label="登壇者（カンマ区切り）" value={form.guests} onChange={(v) => setForm({ ...form, guests: v })} />
+                  <Field label="拡散のお願い" value={form.cta} onChange={(v) => setForm({ ...form, cta: v })} />
+                </>
+              )}
+            </div>
+            <div className="mt-3 flex items-center gap-3">
+              <button
+                onClick={handleGenerateFromForm}
+                disabled={loading || !form.title.trim()}
+                className="rounded-lg bg-brand px-5 py-2 text-sm font-semibold text-white disabled:opacity-40"
+              >
+                {loading ? "生成中…" : "下書きを作る"}
+              </button>
+              {error && <span className="text-sm text-red-600">{error}</span>}
+            </div>
+          </>
+        )}
       </section>
 
       {result && (
