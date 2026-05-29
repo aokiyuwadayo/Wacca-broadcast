@@ -10,10 +10,10 @@ import type {
 } from "@/lib/schema";
 
 type PlatformKey = keyof Platforms;
-const PLATFORM_LABELS: Record<PlatformKey, string> = {
-  line: "LINE",
-  teams: "Teams",
-  discord: "Discord",
+const PLATFORMS: Record<PlatformKey, { label: string; emoji: string; color: string }> = {
+  line: { label: "LINE", emoji: "💬", color: "#06C755" },
+  teams: { label: "Teams", emoji: "💼", color: "#4B53BC" },
+  discord: { label: "Discord", emoji: "🎮", color: "#5865F2" },
 };
 
 function todayISO(): string {
@@ -128,19 +128,32 @@ export default function Home() {
     setTimeout(() => setCopied(null), 1500);
   }
 
+  const currentText = result?.platforms?.[tab] ?? "";
+
   return (
-    <main className="mx-auto max-w-3xl px-4 py-8">
-      <header className="mb-6">
-        <h1 className="text-2xl font-bold text-brand">YUWA Broadcast</h1>
-        <p className="text-sm text-slate-500">
-          ふんわりメモ → 各プラットフォーム向け告知文（Phase A・コピペ版）
-        </p>
+    <main className="mx-auto max-w-2xl px-4 py-8">
+      {/* ヘッダー */}
+      <header className="mb-7 flex items-center gap-3">
+        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-brand to-brand-accent text-2xl shadow-sm">
+          📣
+        </div>
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">
+            <span className="bg-gradient-to-r from-brand to-brand-accent bg-clip-text text-transparent">
+              YUWA
+            </span>
+            <span className="text-slate-800"> Broadcast</span>
+          </h1>
+          <p className="text-xs text-slate-500">
+            ふんわりメモ → 各SNS向けの告知文をサッと
+          </p>
+        </div>
       </header>
 
       {/* 切替トグル：告知の種類 ＋ 入力方法 */}
-      <div className="mb-4 space-y-3">
+      <div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div>
-          <span className="mb-1 block text-xs font-medium text-slate-500">
+          <span className="mb-1.5 block text-xs font-semibold text-slate-500">
             告知の種類
           </span>
           <div className="flex gap-2">
@@ -148,10 +161,10 @@ export default function Home() {
               <button
                 key={k}
                 onClick={() => setKind(k)}
-                className={`rounded-full px-4 py-1.5 text-sm font-medium transition ${
+                className={`flex-1 rounded-full px-3 py-2 text-sm font-medium transition ${
                   kind === k
-                    ? "bg-brand text-white"
-                    : "bg-white text-slate-600 ring-1 ring-slate-200"
+                    ? "bg-brand text-white shadow-sm"
+                    : "bg-white text-slate-600 ring-1 ring-slate-200 hover:ring-slate-300"
                 }`}
               >
                 {k === "activity" ? "🗓 活動告知" : "🎤 イベント告知"}
@@ -160,7 +173,7 @@ export default function Home() {
           </div>
         </div>
         <div>
-          <span className="mb-1 block text-xs font-medium text-slate-500">
+          <span className="mb-1.5 block text-xs font-semibold text-slate-500">
             入力方法
           </span>
           <div className="flex gap-2">
@@ -173,10 +186,10 @@ export default function Home() {
               <button
                 key={m}
                 onClick={() => setInputMode(m)}
-                className={`rounded-full px-4 py-1.5 text-sm font-medium transition ${
+                className={`flex-1 rounded-full px-3 py-2 text-sm font-medium transition ${
                   inputMode === m
-                    ? "bg-slate-900 text-white"
-                    : "bg-white text-slate-600 ring-1 ring-slate-200"
+                    ? "bg-slate-900 text-white shadow-sm"
+                    : "bg-white text-slate-600 ring-1 ring-slate-200 hover:ring-slate-300"
                 }`}
               >
                 {label}
@@ -187,34 +200,40 @@ export default function Home() {
       </div>
 
       {/* 入力エリア（メモ書き or フォーム） */}
-      <section className="rounded-xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
+      <section className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
         {inputMode === "memo" ? (
           <>
-            <label className="mb-2 block text-sm font-medium text-slate-700">
-              ふんわりメモ（順番も体裁もぐちゃぐちゃでOK）
+            <label className="mb-2 block text-sm font-semibold text-slate-700">
+              ふんわりメモ
+              <span className="ml-1 font-normal text-slate-400">
+                （順番も体裁もぐちゃぐちゃでOK）
+              </span>
             </label>
             <textarea
               value={rawText}
               onChange={(e) => setRawText(e.target.value)}
               rows={5}
               placeholder="例：来週木曜 16:30〜 E棟3階R教室で立花祭の出展内容を決める。持ち物なし。"
-              className="w-full resize-y rounded-lg border border-slate-300 p-3 text-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
+              className="w-full resize-y rounded-xl border border-slate-300 p-3 text-sm focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
             />
             <div className="mt-3 flex items-center gap-3">
               <button
                 onClick={handleGenerate}
                 disabled={loading || !rawText.trim()}
-                className="rounded-lg bg-brand px-5 py-2 text-sm font-semibold text-white disabled:opacity-40"
+                className="rounded-xl bg-brand px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:brightness-110 disabled:opacity-40"
               >
-                {loading ? "生成中…" : "下書きを作る"}
+                {loading ? "生成中…" : "✨ 下書きを作る"}
               </button>
               {error && <span className="text-sm text-red-600">{error}</span>}
             </div>
           </>
         ) : (
           <>
-            <p className="mb-3 text-sm font-medium text-slate-700">
-              フォームで項目を入力（分かるところだけでOK）
+            <p className="mb-3 text-sm font-semibold text-slate-700">
+              フォームで項目を入力
+              <span className="ml-1 font-normal text-slate-400">
+                （分かるところだけでOK）
+              </span>
             </p>
             <div className="space-y-3">
               <Field label="タイトル" value={form.title} onChange={(v) => setForm({ ...form, title: v })} />
@@ -233,13 +252,13 @@ export default function Home() {
                 </>
               )}
             </div>
-            <div className="mt-3 flex items-center gap-3">
+            <div className="mt-4 flex items-center gap-3">
               <button
                 onClick={handleGenerateFromForm}
                 disabled={loading || !form.title.trim()}
-                className="rounded-lg bg-brand px-5 py-2 text-sm font-semibold text-white disabled:opacity-40"
+                className="rounded-xl bg-brand px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:brightness-110 disabled:opacity-40"
               >
-                {loading ? "生成中…" : "下書きを作る"}
+                {loading ? "生成中…" : "✨ 下書きを作る"}
               </button>
               {error && <span className="text-sm text-red-600">{error}</span>}
             </div>
@@ -254,7 +273,7 @@ export default function Home() {
         <>
           {/* 不足項目（ガイド） */}
           {result.missing.length > 0 && (
-            <section className="mt-4 rounded-xl bg-amber-50 p-4 ring-1 ring-amber-200">
+            <section className="mt-4 rounded-2xl bg-amber-50 p-5 ring-1 ring-amber-200">
               <h2 className="mb-2 text-sm font-semibold text-amber-800">
                 ⚠️ あと少し教えて（必須）
               </h2>
@@ -286,7 +305,7 @@ export default function Home() {
 
           {/* AIの推測（assumptions） */}
           {result.assumptions.length > 0 && (
-            <section className="mt-4 rounded-xl bg-slate-100 p-4 text-sm text-slate-600">
+            <section className="mt-4 rounded-2xl bg-slate-100 p-4 text-sm text-slate-600">
               <p className="mb-1 font-semibold">🤖 AIが補完した点（確認してね）</p>
               <ul className="list-disc pl-5">
                 {result.assumptions.map((a, i) => (
@@ -297,36 +316,46 @@ export default function Home() {
           )}
 
           {/* PF別プレビュー＋コピー */}
-          <section className="mt-4 rounded-xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
-            <div className="mb-3 flex gap-2">
-              {(Object.keys(PLATFORM_LABELS) as PlatformKey[]).map((k) => (
+          <section className="mt-4 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
+            <div className="mb-3 flex items-center gap-2">
+              {(Object.keys(PLATFORMS) as PlatformKey[]).map((k) => (
                 <button
                   key={k}
                   onClick={() => setTab(k)}
-                  className={`rounded-lg px-3 py-1.5 text-sm font-medium ${
+                  style={tab === k ? { backgroundColor: PLATFORMS[k].color } : undefined}
+                  className={`rounded-full px-3.5 py-1.5 text-sm font-medium transition ${
                     tab === k
-                      ? "bg-slate-900 text-white"
-                      : "bg-slate-100 text-slate-600"
+                      ? "text-white shadow-sm"
+                      : "bg-slate-100 text-slate-600 hover:bg-slate-200"
                   }`}
                 >
-                  {PLATFORM_LABELS[k]}
+                  {PLATFORMS[k].emoji} {PLATFORMS[k].label}
                 </button>
               ))}
+              <span className="ml-auto text-xs text-slate-400">
+                {currentText.length}字
+                {tab === "line" && currentText.length > 500 && (
+                  <span className="ml-1 text-amber-600">（長め）</span>
+                )}
+              </span>
             </div>
-            <pre className="max-h-96 overflow-auto whitespace-pre-wrap rounded-lg bg-slate-50 p-3 text-sm leading-relaxed">
-              {result.platforms?.[tab] ?? ""}
+            <pre className="max-h-[28rem] overflow-auto whitespace-pre-wrap rounded-xl bg-slate-50 p-4 text-[13px] leading-relaxed text-slate-800 ring-1 ring-slate-100">
+              {currentText}
             </pre>
             <button
               onClick={() => copy(tab)}
-              className="mt-3 rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white"
+              style={{ backgroundColor: PLATFORMS[tab].color }}
+              className="mt-3 w-full rounded-xl px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:brightness-110"
             >
-              {copied === tab ? "✅ コピーした！" : `📋 ${PLATFORM_LABELS[tab]}版をコピー`}
+              {copied === tab
+                ? "✅ コピーした！貼り付けてね"
+                : `📋 ${PLATFORMS[tab].label}版をコピー`}
             </button>
           </section>
 
           {/* AIに相談して修正 */}
-          <section className="mt-4 rounded-xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
-            <label className="mb-2 block text-sm font-medium text-slate-700">
+          <section className="mt-4 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
+            <label className="mb-2 block text-sm font-semibold text-slate-700">
               💬 気になる所をAIに相談して修正
             </label>
             <div className="flex gap-2">
@@ -334,20 +363,20 @@ export default function Home() {
                 value={refine}
                 onChange={(e) => setRefine(e.target.value)}
                 placeholder="例：LINE版もっと短く / もっと熱く / 流れの3つは消して"
-                className="flex-1 rounded-lg border border-slate-300 p-2 text-sm focus:border-brand focus:outline-none"
+                className="flex-1 rounded-xl border border-slate-300 p-2.5 text-sm focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
                 onKeyDown={(e) => e.key === "Enter" && handleRefine()}
               />
               <button
                 onClick={handleRefine}
                 disabled={loading || !refine.trim()}
-                className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-40"
+                className="rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white transition hover:brightness-110 disabled:opacity-40"
               >
                 修正
               </button>
             </div>
           </section>
 
-          {/* フォーム編集（フォーム型モード：中間JSONを直接いじって再生成） */}
+          {/* フォーム編集（生成結果の項目を直接いじって再生成） */}
           <JsonForm
             json={result.json}
             loading={loading}
@@ -356,7 +385,7 @@ export default function Home() {
         </>
       )}
 
-      <footer className="mt-8 text-center text-xs text-slate-400">
+      <footer className="mt-10 text-center text-xs text-slate-400">
         YUWA Broadcast · Phase A · 設計は docs/design-doc.md
         {process.env.NODE_ENV === "development" && (
           <>
@@ -392,15 +421,15 @@ function JsonForm({
   // 開くたびに最新の json で draft を初期化する（下の onClick で setDraft(json)）
 
   return (
-    <section className="mt-4 rounded-xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
+    <section className="mt-4 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
       <button
         onClick={() => {
           setDraft(json);
           setOpen(!open);
         }}
-        className="text-sm font-medium text-brand"
+        className="text-sm font-semibold text-brand"
       >
-        {open ? "▼" : "▶"} 項目を直接編集（フォーム型）
+        {open ? "▼" : "▶"} 生成結果の項目を直接編集
       </button>
       {open && (
         <div className="mt-3 space-y-3">
@@ -461,7 +490,7 @@ function JsonForm({
           <button
             onClick={() => onRegen(draft)}
             disabled={loading}
-            className="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white disabled:opacity-40"
+            className="rounded-xl bg-brand px-4 py-2.5 text-sm font-semibold text-white transition hover:brightness-110 disabled:opacity-40"
           >
             この内容で作り直す
           </button>
@@ -486,7 +515,7 @@ function Field({
       <input
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="mt-1 w-full rounded-lg border border-slate-300 p-2 text-sm focus:border-brand focus:outline-none"
+        className="mt-1 w-full rounded-lg border border-slate-300 p-2 text-sm focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
       />
     </div>
   );
@@ -515,6 +544,10 @@ const LOADING_MESSAGES = [
   "スクロールしたくなる構成を設計中…",
   "もうひと味、足しています…",
   "サークルの空気感を読み取り中…",
+  "“こんな人に来てほしい”を考え中…",
+  "情報ブロックをきれいに揃えています…",
+  "Discord版にノリを足しています…",
+  "参加したくなる理由を探しています…",
   "あと少し、いい感じになってきた…",
 ];
 
@@ -550,17 +583,22 @@ function GeneratingShow() {
   const emoji = LOADING_EMOJI[(start + tick) % LOADING_EMOJI.length];
 
   return (
-    <section className="mt-4 rounded-xl bg-white p-6 text-center shadow-sm ring-1 ring-slate-200">
+    <section className="mt-4 rounded-2xl bg-white p-7 text-center shadow-sm ring-1 ring-slate-200">
       <div className="animate-bounce text-5xl">{emoji}</div>
-      <p className="mt-3 text-sm font-medium text-slate-700">{msg}</p>
-      <div className="mt-2 flex justify-center gap-1">
-        {[0, 1, 2].map((d) => (
-          <span
-            key={d}
-            className="h-1.5 w-1.5 animate-pulse rounded-full bg-brand"
-            style={{ animationDelay: `${d * 0.2}s` }}
-          />
-        ))}
+      {/* メッセージ（key で切り替えのたびにふわっと） */}
+      <p
+        key={tick}
+        className="mt-3 text-sm font-medium text-slate-700"
+        style={{ animation: "yb-fade 0.4s ease" }}
+      >
+        {msg}
+      </p>
+      {/* 進捗バー（スライドするインジケータ） */}
+      <div className="mx-auto mt-4 h-1.5 w-44 overflow-hidden rounded-full bg-slate-100">
+        <div
+          className="h-full w-1/3 rounded-full bg-gradient-to-r from-brand to-brand-accent"
+          style={{ animation: "yb-slide 1.4s ease-in-out infinite" }}
+        />
       </div>
       <p className="mt-4 text-xs text-slate-400">{trivia}</p>
     </section>

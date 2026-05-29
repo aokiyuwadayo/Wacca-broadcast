@@ -7,5 +7,19 @@
 }
 
 body {
-  @apply bg-slate-50 text-slate-900 antialiased;
+  @apply text-slate-900 antialiased;
+  background: linear-gradient(180deg, #f8fafc 0%, #eef2ff 100%);
+  background-attachment: fixed;
+  min-height: 100vh;
+}
+
+/* 生成中演出：進捗バーのスライド */
+@keyframes yb-slide {
+  0% { transform: translateX(-120%); }
+  100% { transform: translateX(260%); }
+}
+/* 生成中演出：メッセージ切替のふわっと表示 */
+@keyframes yb-fade {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: none; }
 }
