@@ -81,7 +81,7 @@ export default function Home() {
 
   async function copy(key: PlatformKey) {
     if (!result) return;
-    await navigator.clipboard.writeText(result.platforms[key]);
+    await navigator.clipboard.writeText(result.platforms?.[key] ?? "");
     setCopied(key);
     setTimeout(() => setCopied(null), 1500);
   }
@@ -200,7 +200,7 @@ export default function Home() {
               ))}
             </div>
             <pre className="max-h-96 overflow-auto whitespace-pre-wrap rounded-lg bg-slate-50 p-3 text-sm leading-relaxed">
-              {result.platforms[tab]}
+              {result.platforms?.[tab] ?? ""}
             </pre>
             <button
               onClick={() => copy(tab)}

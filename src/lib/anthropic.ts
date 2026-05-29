@@ -15,7 +15,9 @@ function getClient(): Anthropic {
 export async function compose(userText: string): Promise<ComposeResult> {
   const resp = await getClient().messages.create({
     model: MODEL,
-    max_tokens: 2048,
+    // 中間JSON＋3PF分の和文を出し切るには十分な余裕が要る。
+    // 2048 だと途中で切れて platforms が欠けることがあった。
+    max_tokens: 8192,
     // system プロンプトは毎回同じなので prompt caching でキャッシュする（コスト削減）
     system: [
       {
@@ -33,5 +35,15 @@ export async function compose(userText: string): Promise<ComposeResult> {
   if (!toolUse || toolUse.type !== "tool_use") {
     throw new Error("モデルが構造化結果を返しませんでした");
   }
-  return toolUse.input as ComposeResult;
+  const result = toolUse.input as Partial<ComposeResult>;
+
+  // 出力が途中で切れて platforms が欠けるケースを検知して、クラッシュではなく親切なエラーに
+  if (!result.platforms || typeof result.platforms.line !== "string") {
+    throw new Error(
+      resp.stop_reason === "max_tokens"
+        ? "出力が長すぎて途中で切れました。メモを短くするか、もう一度お試しください。"
+        : "生成結果が不完全でした。もう一度お試しください。",
+    );
+  }
+  return result as ComposeResult;
 }
