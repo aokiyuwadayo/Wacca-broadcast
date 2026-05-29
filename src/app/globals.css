@@ -23,3 +23,25 @@ body {
   from { opacity: 0; transform: translateY(4px); }
   to { opacity: 1; transform: none; }
 }
+/* 演出：ボトルに水が溜まる */
+@keyframes yb-fill {
+  0% { height: 0%; }
+  55% { height: 100%; }
+  72% { height: 100%; }
+  100% { height: 0%; }
+}
+/* 演出：トイレットペーパーの芯が回る */
+@keyframes yb-spin {
+  to { transform: rotate(360deg); }
+}
+/* 演出：紙が巻かれて短くなる */
+@keyframes yb-paper {
+  0% { height: 46px; }
+  80% { height: 4px; }
+  100% { height: 46px; }
+}
+/* 演出：タイマーのリングがゼロに向かう */
+@keyframes yb-timer {
+  from { stroke-dashoffset: 0; }
+  to { stroke-dashoffset: 100; }
+}

@@ -568,9 +568,93 @@ const TRIVIA = [
   "豆知識：箇条書きは3つまでが一番スッと入る。",
 ];
 
+// --- 演出ビジュアル（生成のたびにランダムで1つ出る） ---
+
+// 💧 ボトルに水が溜まっていく
+function BottleShow() {
+  return (
+    <div className="relative h-20 w-11" title="水を注いでいます">
+      <div className="absolute inset-x-3 top-0 h-3 rounded-t bg-slate-300" />
+      <div className="absolute inset-x-0 bottom-0 top-2.5 overflow-hidden rounded-b-2xl rounded-t-lg border-2 border-slate-300 bg-white">
+        <div
+          className="absolute bottom-0 left-0 w-full bg-gradient-to-t from-sky-400 to-sky-300"
+          style={{ animation: "yb-fill 2.6s ease-in-out infinite" }}
+        />
+      </div>
+    </div>
+  );
+}
+
+// 🧻 トイレットペーパーが巻かれて短くなる
+function ToiletPaperShow() {
+  return (
+    <div className="flex flex-col items-center">
+      <div className="relative h-12 w-12">
+        <div
+          className="absolute inset-0 rounded-full border-4 border-slate-300 bg-white"
+          style={{ animation: "yb-spin 1s linear infinite" }}
+        >
+          <div className="absolute left-1/2 top-1 h-2.5 w-0.5 -translate-x-1/2 rounded bg-slate-300" />
+        </div>
+      </div>
+      <div
+        className="w-7 rounded-b bg-slate-100 ring-1 ring-slate-200"
+        style={{ animation: "yb-paper 2s ease-in-out infinite" }}
+      />
+    </div>
+  );
+}
+
+// ⏱️ タイマーのリングがゼロに向かう
+function TimerShow() {
+  return (
+    <div className="relative h-20 w-20">
+      <svg viewBox="0 0 40 40" className="h-full w-full">
+        <circle cx="20" cy="20" r="16" fill="none" stroke="#e2e8f0" strokeWidth="3.5" />
+        <circle
+          cx="20"
+          cy="20"
+          r="16"
+          fill="none"
+          stroke="#4f46e5"
+          strokeWidth="3.5"
+          strokeLinecap="round"
+          pathLength={100}
+          strokeDasharray="100"
+          style={{
+            animation: "yb-timer 3s linear infinite",
+            transformOrigin: "center",
+            transform: "rotate(-90deg)",
+          }}
+        />
+      </svg>
+      <div className="absolute inset-0 flex items-center justify-center text-2xl">
+        ⏱️
+      </div>
+    </div>
+  );
+}
+
+// 🙌 跳ねる絵文字（くるくる切替）
+function EmojiShow() {
+  const [i, setI] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setI((v) => v + 1), 600);
+    return () => clearInterval(id);
+  }, []);
+  return (
+    <div className="animate-bounce text-5xl">
+      {LOADING_EMOJI[i % LOADING_EMOJI.length]}
+    </div>
+  );
+}
+
+const VISUALS = [BottleShow, ToiletPaperShow, TimerShow, EmojiShow];
+
 function GeneratingShow() {
   const [tick, setTick] = useState(0);
-  // 生成のたびに開始位置と豆知識をランダムに → 毎回ちょっと違って飽きない
+  // 生成のたびに「演出ビジュアル・メッセージ開始位置・豆知識」をランダムに → 毎回ちょっと違って飽きない
+  const [Visual] = useState(() => VISUALS[Math.floor(Math.random() * VISUALS.length)]);
   const [start] = useState(() => Math.floor(Math.random() * LOADING_MESSAGES.length));
   const [trivia] = useState(() => TRIVIA[Math.floor(Math.random() * TRIVIA.length)]);
 
@@ -580,27 +664,21 @@ function GeneratingShow() {
   }, []);
 
   const msg = LOADING_MESSAGES[(start + tick) % LOADING_MESSAGES.length];
-  const emoji = LOADING_EMOJI[(start + tick) % LOADING_EMOJI.length];
 
   return (
     <section className="mt-4 rounded-2xl bg-white p-7 text-center shadow-sm ring-1 ring-slate-200">
-      <div className="animate-bounce text-5xl">{emoji}</div>
+      <div className="flex h-24 items-center justify-center">
+        <Visual />
+      </div>
       {/* メッセージ（key で切り替えのたびにふわっと） */}
       <p
         key={tick}
-        className="mt-3 text-sm font-medium text-slate-700"
+        className="mt-2 text-sm font-medium text-slate-700"
         style={{ animation: "yb-fade 0.4s ease" }}
       >
         {msg}
       </p>
-      {/* 進捗バー（スライドするインジケータ） */}
-      <div className="mx-auto mt-4 h-1.5 w-44 overflow-hidden rounded-full bg-slate-100">
-        <div
-          className="h-full w-1/3 rounded-full bg-gradient-to-r from-brand to-brand-accent"
-          style={{ animation: "yb-slide 1.4s ease-in-out infinite" }}
-        />
-      </div>
-      <p className="mt-4 text-xs text-slate-400">{trivia}</p>
+      <p className="mt-3 text-xs text-slate-400">{trivia}</p>
     </section>
   );
 }
