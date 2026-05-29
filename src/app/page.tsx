@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type {
   BroadcastJson,
   BroadcastKind,
@@ -649,63 +649,124 @@ function EmojiShow() {
   );
 }
 
-// 🌊 全画面：波がせり上がって攫い、また引く
-// 各層 = 同一波形を2枚横並び → translateX -50% でシームレスに流れ続ける（パララックス）
-// 波形は左端と右端の y を揃えてあるので継ぎ目が出ない
-const WAVE_LAYERS = [
-  { id: "a", from: "#bae6fd", to: "#7dd3fc", op: 0.45, rise: 4.2, delay: 0, flow: 9, foam: 0, d: "M0,150 C240,110 480,190 720,150 C960,110 1200,190 1440,150 L1440,320 L0,320 Z" },
-  { id: "b", from: "#7dd3fc", to: "#38bdf8", op: 0.5, rise: 3.4, delay: 0.3, flow: 6.5, foam: 0.35, d: "M0,170 C240,216 480,124 720,170 C960,216 1200,124 1440,170 L1440,320 L0,320 Z" },
-  { id: "c", from: "#38bdf8", to: "#0284c7", op: 0.6, rise: 2.8, delay: 0.6, flow: 4.5, foam: 0.45, d: "M0,188 C240,162 480,214 720,188 C960,162 1200,214 1440,188 L1440,320 L0,320 Z" },
+// 🌊 全画面：Canvas で本物の海をシミュレート
+// 複数周波数のサイン波を重ねた自然なうねり × 3層パララックス × グラデ × 泡 × きらめき
+// ＋ 水位がゆっくりせり上がって引く
+const WAVE_SIM_LAYERS = [
+  // 奥（base大=下のほう）→ 手前（base小=上）。手前ほど大きく速く暗い
+  { base: 0.30, top: "#bae6fd", bot: "#7dd3fc", alpha: 0.5, foam: 0, comps: [{ amp: 9, freq: 1.1, sp: 0.7, ph: 0 }, { amp: 5, freq: 2.3, sp: 1.0, ph: 1.7 }, { amp: 3, freq: 4.3, sp: 1.6, ph: 0.5 }] },
+  { base: 0.16, top: "#7dd3fc", bot: "#38bdf8", alpha: 0.6, foam: 0.3, comps: [{ amp: 13, freq: 0.9, sp: 0.9, ph: 2.1 }, { amp: 7, freq: 1.9, sp: 1.2, ph: 0.3 }, { amp: 4, freq: 3.7, sp: 1.9, ph: 1.1 }] },
+  { base: 0.0, top: "#38bdf8", bot: "#075985", alpha: 0.74, foam: 0.5, comps: [{ amp: 19, freq: 0.8, sp: 1.1, ph: 0.9 }, { amp: 10, freq: 1.6, sp: 1.5, ph: 2.4 }, { amp: 5, freq: 3.1, sp: 2.3, ph: 0.2 }] },
 ];
 
-function WaveLayer() {
-  return (
-    <div className="pointer-events-none absolute inset-0 overflow-hidden">
-      {/* グラデーション定義（1回だけ） */}
-      <svg className="absolute h-0 w-0">
-        <defs>
-          {WAVE_LAYERS.map((l) => (
-            <linearGradient key={l.id} id={`yb-grad-${l.id}`} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor={l.from} />
-              <stop offset="100%" stopColor={l.to} />
-            </linearGradient>
-          ))}
-        </defs>
-      </svg>
-      {WAVE_LAYERS.map((l) => (
-        <div
-          key={l.id}
-          className="absolute -left-[4%] -right-[4%] bottom-0 h-[160%]"
-          style={{ animation: `yb-wave-rise ${l.rise}s ease-in-out ${l.delay}s infinite` }}
-        >
-          <div
-            className="flex h-full w-[200%]"
-            style={{ animation: `yb-wave-flow ${l.flow}s linear infinite` }}
-          >
-            {[0, 1].map((c) => (
-              <svg
-                key={c}
-                viewBox="0 0 1440 320"
-                preserveAspectRatio="none"
-                className="h-full w-1/2"
-              >
-                <path d={l.d} fill={`url(#yb-grad-${l.id})`} fillOpacity={l.op} />
-                {l.foam > 0 && (
-                  <path
-                    d={l.d.split(" L1440")[0]}
-                    fill="none"
-                    stroke="#ffffff"
-                    strokeOpacity={l.foam}
-                    strokeWidth="3"
-                  />
-                )}
-              </svg>
-            ))}
-          </div>
-        </div>
-      ))}
-    </div>
-  );
+function WaveCanvas() {
+  const ref = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    const canvas = ref.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    let raf = 0;
+    const startedAt = performance.now();
+    let w = 0;
+    let h = 0;
+    const resize = () => {
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      w = canvas.clientWidth;
+      h = canvas.clientHeight;
+      canvas.width = Math.floor(w * dpr);
+      canvas.height = Math.floor(h * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    };
+    resize();
+    window.addEventListener("resize", resize);
+
+    // 各層の水面 y(x)（複数サイン波の重ね合わせ＝自然なうねり）
+    const surfaceY = (
+      L: (typeof WAVE_SIM_LAYERS)[number],
+      x: number,
+      t: number,
+      baseY: number,
+    ) => {
+      let y = baseY;
+      for (const c of L.comps) {
+        y += c.amp * Math.sin((x / w) * c.freq * Math.PI * 2 + t * c.sp + c.ph);
+      }
+      return y;
+    };
+
+    const draw = (now: number) => {
+      const t = (now - startedAt) / 1000;
+      ctx.clearRect(0, 0, w, h);
+
+      // 水位がゆっくりせり上がって引く
+      const rise = Math.sin(t * 0.5) * 0.5 + 0.5; // 0..1
+      const waterTop = h * (0.66 - rise * 0.34);
+      const step = 8;
+
+      for (const L of WAVE_SIM_LAYERS) {
+        const baseY = waterTop + h * L.base;
+
+        // 水の塊を塗る
+        ctx.beginPath();
+        ctx.moveTo(0, h);
+        ctx.lineTo(0, surfaceY(L, 0, t, baseY));
+        for (let x = 0; x <= w; x += step) {
+          ctx.lineTo(x, surfaceY(L, x, t, baseY));
+        }
+        ctx.lineTo(w, h);
+        ctx.closePath();
+        const g = ctx.createLinearGradient(0, baseY - 40, 0, h);
+        g.addColorStop(0, L.top);
+        g.addColorStop(1, L.bot);
+        ctx.globalAlpha = L.alpha;
+        ctx.fillStyle = g;
+        ctx.fill();
+        ctx.globalAlpha = 1;
+
+        // 波頭の泡
+        if (L.foam > 0) {
+          ctx.beginPath();
+          for (let x = 0; x <= w; x += step) {
+            const y = surfaceY(L, x, t, baseY);
+            if (x === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+          }
+          ctx.strokeStyle = "#ffffff";
+          ctx.globalAlpha = L.foam;
+          ctx.lineWidth = 2;
+          ctx.stroke();
+          ctx.globalAlpha = 1;
+        }
+      }
+
+      // 手前の水面で動くきらめき
+      const front = WAVE_SIM_LAYERS[WAVE_SIM_LAYERS.length - 1];
+      const baseY = waterTop + h * front.base;
+      ctx.fillStyle = "#ffffff";
+      for (let i = 0; i < 16; i++) {
+        const x = ((i * 151 + t * 38) % (w + 40)) - 20;
+        const y = surfaceY(front, x, t, baseY);
+        const tw = Math.sin(t * 3 + i * 1.3) * 0.5 + 0.5;
+        ctx.globalAlpha = 0.12 + tw * 0.28;
+        ctx.beginPath();
+        ctx.ellipse(x, y + 5, 5, 1.3, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+
+      raf = requestAnimationFrame(draw);
+    };
+    raf = requestAnimationFrame(draw);
+
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener("resize", resize);
+    };
+  }, []);
+
+  return <canvas ref={ref} className="pointer-events-none absolute inset-0 h-full w-full" />;
 }
 
 // 🟦 全画面：本物のピクセル化（カクカクのモザイク→鮮明を SVG フィルタで）
@@ -755,7 +816,7 @@ function GeneratingShow() {
       className="fixed inset-0 z-50 flex flex-col items-center justify-center overflow-hidden bg-gradient-to-b from-white/90 to-indigo-50/90 backdrop-blur-md"
       style={{ animation: "yb-fade 0.3s ease" }}
     >
-      {scene === "wave" && <WaveLayer />}
+      {scene === "wave" && <WaveCanvas />}
       {scene === "mosaic" && <MosaicFilterDef />}
       {/* モザイクの四角い格子線（区切りが見える）→ 一度だけフェードアウト */}
       {scene === "mosaic" && (
