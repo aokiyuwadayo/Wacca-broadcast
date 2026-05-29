@@ -666,19 +666,25 @@ function GeneratingShow() {
   const msg = LOADING_MESSAGES[(start + tick) % LOADING_MESSAGES.length];
 
   return (
-    <section className="mt-4 rounded-2xl bg-white p-7 text-center shadow-sm ring-1 ring-slate-200">
-      <div className="flex h-24 items-center justify-center">
+    <div
+      className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-gradient-to-b from-white/90 to-indigo-50/90 backdrop-blur-md"
+      style={{ animation: "yb-fade 0.3s ease" }}
+    >
+      <p className="mb-6 text-xs font-semibold uppercase tracking-widest text-brand">
+        生成中
+      </p>
+      <div className="flex h-32 scale-125 items-center justify-center">
         <Visual />
       </div>
       {/* メッセージ（key で切り替えのたびにふわっと） */}
       <p
         key={tick}
-        className="mt-2 text-sm font-medium text-slate-700"
+        className="mt-6 text-base font-semibold text-slate-700"
         style={{ animation: "yb-fade 0.4s ease" }}
       >
         {msg}
       </p>
-      <p className="mt-3 text-xs text-slate-400">{trivia}</p>
-    </section>
+      <p className="mt-3 max-w-xs text-center text-xs text-slate-400">{trivia}</p>
+    </div>
   );
 }
