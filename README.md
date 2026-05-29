@@ -22,3 +22,26 @@
 > **頭の中のふんわりメモを投げると、AI が相談しながら整え、各 SNS 向けに書き分けて、配信（or コピペ）まで地続きにする。忘れないようリマインドもする。**
 
 詳細は [設計ドキュメント](docs/design-doc.md) を参照。
+
+## ローカルで動かす（Phase A）
+
+Phase A は「メモ → ガイド生成 → 各PF文面 → コピペ」だけ。DB も配信もまだ不要。
+
+```bash
+pnpm install          # または npm install
+cp .env.example .env.local
+# .env.local に ANTHROPIC_API_KEY を設定（https://console.anthropic.com/）
+pnpm dev              # http://localhost:3000
+```
+
+- 既定モデルは Haiku 4.5（1本あたり数円）。品質を上げたいときは `.env.local` の `ANTHROPIC_MODEL` を Sonnet 系に変更。
+- 使い方: 種別（活動/イベント）を選ぶ → ふんわりメモを書く → 「下書きを作る」 → 不足項目があれば答える → LINE/Teams/Discord 版をタブで確認してコピー → 気になる所は「AIに相談して修正」。項目を直接いじりたいときは「フォーム型」を開く。
+
+## Phase A でできること / まだできないこと
+
+| できる | まだ（後続Phase） |
+|---|---|
+| メモ→中間JSON→各PF文面生成 | 保存・履歴（Phase B） |
+| ガイド型（不足項目を質問）/ フォーム型 | 自動投稿（Phase C） |
+| AI相談で修正・再生成 | 予約投稿・リマインド（Phase D） |
+| 全PF版をコピペ | 文体学習・引き継ぎ（Phase E） |
