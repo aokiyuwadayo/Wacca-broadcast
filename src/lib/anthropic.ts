@@ -2,7 +2,9 @@ import Anthropic from "@anthropic-ai/sdk";
 import { COMPOSE_TOOL, type ComposeResult } from "./schema";
 import { SYSTEM } from "./prompts";
 
-const MODEL = process.env.ANTHROPIC_MODEL || "claude-haiku-4-5-20251001";
+// 既定は Sonnet 4.6：文章構成の質が高く、この規模ならコストも 1 本あたり数円〜数十円で済む。
+// コストが効いてくる大規模時は ANTHROPIC_MODEL=claude-haiku-4-5-20251001 に切り替えると激安になる。
+const MODEL = process.env.ANTHROPIC_MODEL || "claude-sonnet-4-6";
 
 let client: Anthropic | null = null;
 function getClient(): Anthropic {

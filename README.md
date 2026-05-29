@@ -34,7 +34,8 @@ cp .env.example .env.local
 pnpm dev              # http://localhost:3000
 ```
 
-- 既定モデルは Haiku 4.5（1本あたり数円）。品質を上げたいときは `.env.local` の `ANTHROPIC_MODEL` を Sonnet 系に変更。
+- 既定モデルは **Sonnet 4.6**（安い×文章構成が上手いスイートスポット。1本あたり数円〜数十円）。大規模化でコストを絞るときは `.env.local` の `ANTHROPIC_MODEL` を `claude-haiku-4-5-20251001` に。最高品質が欲しければ `claude-opus-4-8`。
+- 質を自分の目で見て決めたいときは、同じメモで `ANTHROPIC_MODEL` を Sonnet ⇄ Haiku で切り替えて出力を比べる（A/Bテスト）。
 - 使い方: 種別（活動/イベント）を選ぶ → ふんわりメモを書く → 「下書きを作る」 → 不足項目があれば答える → LINE/Teams/Discord 版をタブで確認してコピー → 気になる所は「AIに相談して修正」。項目を直接いじりたいときは「フォーム型」を開く。
 
 ## Phase A でできること / まだできないこと
