@@ -684,16 +684,17 @@ function MosaicFilterDef() {
   return (
     <svg aria-hidden className="absolute h-0 w-0">
       <defs>
+        {/* ピクセル化 → 鮮明 を一度だけ（fill=freeze で鮮明のまま固定） */}
         <filter id="yb-mosaic" x="0" y="0">
           <feFlood x="4" y="4" height="2" width="2" />
-          <feComposite width="20" height="20">
-            <animate attributeName="width" dur="2.8s" repeatCount="indefinite" keyTimes="0;0.4;0.5;0.6;1" values="20;20;2;2;20" />
-            <animate attributeName="height" dur="2.8s" repeatCount="indefinite" keyTimes="0;0.4;0.5;0.6;1" values="20;20;2;2;20" />
+          <feComposite width="22" height="22">
+            <animate attributeName="width" dur="2.1s" repeatCount="1" fill="freeze" keyTimes="0;0.55;1" values="22;22;1" />
+            <animate attributeName="height" dur="2.1s" repeatCount="1" fill="freeze" keyTimes="0;0.55;1" values="22;22;1" />
           </feComposite>
           <feTile result="a" />
           <feComposite in="SourceGraphic" in2="a" operator="in" />
-          <feMorphology operator="dilate" radius="10">
-            <animate attributeName="radius" dur="2.8s" repeatCount="indefinite" keyTimes="0;0.4;0.5;0.6;1" values="10;10;1;1;10" />
+          <feMorphology operator="dilate" radius="11">
+            <animate attributeName="radius" dur="2.1s" repeatCount="1" fill="freeze" keyTimes="0;0.55;1" values="11;11;0" />
           </feMorphology>
         </filter>
       </defs>
@@ -727,6 +728,18 @@ function GeneratingShow() {
     >
       {scene === "wave" && <WaveLayer />}
       {scene === "mosaic" && <MosaicFilterDef />}
+      {/* モザイクの四角い格子線（区切りが見える）→ 一度だけフェードアウト */}
+      {scene === "mosaic" && (
+        <div
+          className="pointer-events-none absolute inset-0 z-20"
+          style={{
+            backgroundImage:
+              "linear-gradient(to right, rgba(15,23,42,0.13) 1px, transparent 1px), linear-gradient(to bottom, rgba(15,23,42,0.13) 1px, transparent 1px)",
+            backgroundSize: "22px 22px",
+            animation: "yb-grid-fade 2.1s ease forwards",
+          }}
+        />
+      )}
       <div
         className="relative z-10 flex flex-col items-center"
         style={scene === "mosaic" ? { filter: "url(#yb-mosaic)" } : undefined}

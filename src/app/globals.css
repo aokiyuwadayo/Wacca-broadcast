@@ -57,3 +57,9 @@ body {
   50% { transform: translateX(3%); }
   100% { transform: translateX(-3%); }
 }
+/* 演出：モザイクの格子線が一度だけフェードアウト（鮮明化に同期） */
+@keyframes yb-grid-fade {
+  0% { opacity: 1; }
+  55% { opacity: 1; }
+  100% { opacity: 0; }
+}
