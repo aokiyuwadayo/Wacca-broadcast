@@ -688,13 +688,13 @@ function MosaicFilterDef() {
         <filter id="yb-mosaic" x="0" y="0">
           <feFlood x="4" y="4" height="2" width="2" />
           <feComposite width="22" height="22">
-            <animate attributeName="width" dur="2.1s" repeatCount="1" fill="freeze" keyTimes="0;0.55;1" values="22;22;1" />
-            <animate attributeName="height" dur="2.1s" repeatCount="1" fill="freeze" keyTimes="0;0.55;1" values="22;22;1" />
+            <animate attributeName="width" dur="3.5s" repeatCount="1" fill="freeze" keyTimes="0;0.55;1" values="22;22;1" />
+            <animate attributeName="height" dur="3.5s" repeatCount="1" fill="freeze" keyTimes="0;0.55;1" values="22;22;1" />
           </feComposite>
           <feTile result="a" />
           <feComposite in="SourceGraphic" in2="a" operator="in" />
           <feMorphology operator="dilate" radius="11">
-            <animate attributeName="radius" dur="2.1s" repeatCount="1" fill="freeze" keyTimes="0;0.55;1" values="11;11;0" />
+            <animate attributeName="radius" dur="3.5s" repeatCount="1" fill="freeze" keyTimes="0;0.55;1" values="11;11;0" />
           </feMorphology>
         </filter>
       </defs>
@@ -736,7 +736,7 @@ function GeneratingShow() {
             backgroundImage:
               "linear-gradient(to right, rgba(15,23,42,0.13) 1px, transparent 1px), linear-gradient(to bottom, rgba(15,23,42,0.13) 1px, transparent 1px)",
             backgroundSize: "22px 22px",
-            animation: "yb-grid-fade 2.1s ease forwards",
+            animation: "yb-grid-fade 3.5s ease forwards",
           }}
         />
       )}
