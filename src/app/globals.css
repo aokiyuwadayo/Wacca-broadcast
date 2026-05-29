@@ -47,13 +47,13 @@ body {
 }
 /* 演出：波がせり上がって攫い、また引く */
 @keyframes yb-wave-rise {
-  0% { transform: translateY(55%); }
-  50% { transform: translateY(-8%); }
-  100% { transform: translateY(55%); }
+  0% { transform: translateY(58%); }
+  50% { transform: translateY(-10%); }
+  100% { transform: translateY(58%); }
 }
-/* 演出：モザイク風にぼやけて鮮明に戻る（脈打つ） */
-@keyframes yb-defocus {
-  0% { filter: blur(12px); opacity: 0.5; }
-  50% { filter: blur(0px); opacity: 1; }
-  100% { filter: blur(12px); opacity: 0.5; }
+/* 演出：波の横揺れ（層ごとに速さを変えて奥行きを出す） */
+@keyframes yb-wave-sway {
+  0% { transform: translateX(-3%); }
+  50% { transform: translateX(3%); }
+  100% { transform: translateX(-3%); }
 }

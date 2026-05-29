@@ -649,32 +649,55 @@ function EmojiShow() {
   );
 }
 
-// 🌊 全画面：波がせり上がって攫い、また引く
+// 🌊 全画面：波がせり上がって攫い、また引く（3層＋横揺れで奥行き）
+const WAVE_LAYERS = [
+  { fill: "#7dd3fc", op: 0.3, rise: 3.8, delay: 0, sway: 6, d: "M0,170 C180,230 340,110 540,150 C740,190 900,250 1080,210 C1260,170 1380,195 1440,180 L1440,320 L0,320 Z" },
+  { fill: "#38bdf8", op: 0.34, rise: 3.1, delay: 0.3, sway: 8, d: "M0,150 C200,210 380,120 560,160 C760,205 940,130 1120,170 C1300,205 1390,150 1440,165 L1440,320 L0,320 Z" },
+  { fill: "#0284c7", op: 0.3, rise: 2.6, delay: 0.6, sway: 7, d: "M0,185 C160,150 360,235 560,195 C780,150 960,235 1140,200 C1320,170 1400,205 1440,190 L1440,320 L0,320 Z" },
+];
+
 function WaveLayer() {
   return (
-    <div className="pointer-events-none absolute inset-0">
-      {[0, 1].map((i) => (
+    <div className="pointer-events-none absolute inset-0 overflow-hidden">
+      {WAVE_LAYERS.map((l, i) => (
         <div
           key={i}
-          className="absolute inset-x-0 bottom-0 h-[140%]"
-          style={{
-            animation: `yb-wave-rise ${3 + i * 0.8}s ease-in-out ${i * 0.4}s infinite`,
-          }}
+          className="absolute -left-[8%] -right-[8%] bottom-0 h-[150%]"
+          style={{ animation: `yb-wave-rise ${l.rise}s ease-in-out ${l.delay}s infinite` }}
         >
-          <svg
-            viewBox="0 0 1440 320"
-            preserveAspectRatio="none"
+          <div
             className="h-full w-full"
+            style={{ animation: `yb-wave-sway ${l.sway}s ease-in-out infinite` }}
           >
-            <path
-              fill={i === 0 ? "#38bdf8" : "#0ea5e9"}
-              fillOpacity={i === 0 ? 0.35 : 0.28}
-              d="M0,160 C240,260 480,60 720,140 C960,220 1200,80 1440,150 L1440,320 L0,320 Z"
-            />
-          </svg>
+            <svg viewBox="0 0 1440 320" preserveAspectRatio="none" className="h-full w-full">
+              <path fill={l.fill} fillOpacity={l.op} d={l.d} />
+            </svg>
+          </div>
         </div>
       ))}
     </div>
+  );
+}
+
+// 🟦 全画面：本物のピクセル化（カクカクのモザイク→鮮明を SVG フィルタで）
+function MosaicFilterDef() {
+  return (
+    <svg aria-hidden className="absolute h-0 w-0">
+      <defs>
+        <filter id="yb-mosaic" x="0" y="0">
+          <feFlood x="4" y="4" height="2" width="2" />
+          <feComposite width="20" height="20">
+            <animate attributeName="width" dur="2.8s" repeatCount="indefinite" keyTimes="0;0.4;0.5;0.6;1" values="20;20;2;2;20" />
+            <animate attributeName="height" dur="2.8s" repeatCount="indefinite" keyTimes="0;0.4;0.5;0.6;1" values="20;20;2;2;20" />
+          </feComposite>
+          <feTile result="a" />
+          <feComposite in="SourceGraphic" in2="a" operator="in" />
+          <feMorphology operator="dilate" radius="10">
+            <animate attributeName="radius" dur="2.8s" repeatCount="indefinite" keyTimes="0;0.4;0.5;0.6;1" values="10;10;1;1;10" />
+          </feMorphology>
+        </filter>
+      </defs>
+    </svg>
   );
 }
 
@@ -696,11 +719,6 @@ function GeneratingShow() {
   }, []);
 
   const msg = LOADING_MESSAGES[(start + tick) % LOADING_MESSAGES.length];
-  // mosaic シーンは中身全体がぼやけ→鮮明を繰り返す
-  const contentStyle =
-    scene === "mosaic"
-      ? { animation: "yb-defocus 2.6s ease-in-out infinite" }
-      : undefined;
 
   return (
     <div
@@ -708,9 +726,10 @@ function GeneratingShow() {
       style={{ animation: "yb-fade 0.3s ease" }}
     >
       {scene === "wave" && <WaveLayer />}
+      {scene === "mosaic" && <MosaicFilterDef />}
       <div
         className="relative z-10 flex flex-col items-center"
-        style={contentStyle}
+        style={scene === "mosaic" ? { filter: "url(#yb-mosaic)" } : undefined}
       >
         <p className="mb-6 text-xs font-semibold uppercase tracking-widest text-brand">
           生成中
@@ -720,6 +739,7 @@ function GeneratingShow() {
             <Visual />
           </div>
         )}
+        {scene === "mosaic" && <div className="mb-5 text-7xl">📣</div>}
         {/* メッセージ（key で切り替えのたびにふわっと） */}
         <p
           key={tick}
