@@ -34,14 +34,16 @@ export async function POST(req: NextRequest) {
           process.env.NEXT_PUBLIC_SUPABASE_URL,
           process.env.SUPABASE_SERVICE_ROLE_KEY,
         );
-        await db.from("broadcasts").insert({
+        const { error: dbError } = await db.from("broadcasts").insert({
           kind: result.json.kind,
           title: result.json.title,
           json: result.json,
           platforms: result.platforms,
         });
-      } catch {
-        // 保存失敗は無視して生成結果を返す
+        if (dbError) console.error("[Supabase] insert error:", dbError);
+        else console.log("[Supabase] saved:", result.json.title);
+      } catch (e) {
+        console.error("[Supabase] unexpected error:", e);
       }
     }
 
