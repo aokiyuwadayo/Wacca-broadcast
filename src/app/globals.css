@@ -45,17 +45,6 @@ body {
   from { stroke-dashoffset: 0; }
   to { stroke-dashoffset: 100; }
 }
-/* 演出：波がせり上がって攫い、また引く */
-@keyframes yb-wave-rise {
-  0% { transform: translateY(58%); }
-  50% { transform: translateY(-10%); }
-  100% { transform: translateY(58%); }
-}
-/* 演出：波が横へシームレスに流れ続ける（同一波形を2枚並べ -50% でループ） */
-@keyframes yb-wave-flow {
-  from { transform: translateX(0); }
-  to { transform: translateX(-50%); }
-}
 /* 演出：モザイクの格子線が一度だけフェードアウト（鮮明化に同期） */
 @keyframes yb-grid-fade {
   0% { opacity: 1; }
