@@ -75,6 +75,19 @@ export default function Home() {
   const [scheduleSaving, setScheduleSaving] = useState(false);
   const [scheduleResult, setScheduleResult] = useState<string | null>(null);
 
+  // スライド下書きモーダル
+  const [slidesOpen, setSlidesOpen] = useState(false);
+  const [slidesLoading, setSlidesLoading] = useState(false);
+  const [slides, setSlides] = useState<Array<{ title: string; bullets: string[] }> | null>(null);
+  const [slidesError, setSlidesError] = useState<string | null>(null);
+  const [copiedSlide, setCopiedSlide] = useState<number | null>(null);
+
+  // 画像アップロード
+  const [uploadedImages, setUploadedImages] = useState<string[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   // 入力方法（メモ書き / フォーム）と、フォーム入力の中身
   const [inputMode, setInputMode] = useState<"memo" | "form">("memo");
   const [form, setForm] = useState({
@@ -167,6 +180,56 @@ export default function Home() {
     callApi({ json: result.json, instruction: refine });
   }
 
+  // 5) スライド下書き生成
+  async function handleGenerateSlides() {
+    if (!result) return;
+    setSlidesLoading(true);
+    setSlidesError(null);
+    setSlides(null);
+    setSlidesOpen(true);
+    try {
+      const res = await fetch("/api/slides", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ json: result.json }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "エラーが発生しました");
+      setSlides(data.slides);
+    } catch (e) {
+      setSlidesError(e instanceof Error ? e.message : "スライドの生成に失敗しました");
+    } finally {
+      setSlidesLoading(false);
+    }
+  }
+
+  async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = "";
+    setUploading(true);
+    setUploadError(null);
+    const fd = new FormData();
+    fd.append("file", file);
+    try {
+      const res = await fetch("/api/upload", { method: "POST", body: fd });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "アップロード失敗");
+      setUploadedImages((prev) => [...prev, data.url]);
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : "アップロードに失敗しました");
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  function copySlide(idx: number, slide: { title: string; bullets: string[] }) {
+    const text = `${slide.title}\n${slide.bullets.map((b) => `・${b}`).join("\n")}`;
+    navigator.clipboard.writeText(text);
+    setCopiedSlide(idx);
+    setTimeout(() => setCopiedSlide(null), 1500);
+  }
+
   async function saveSchedule() {
     if (!scheduleModal || !scheduleDate) return;
     setScheduleSaving(true);
@@ -208,7 +271,12 @@ export default function Home() {
 
   async function copy(key: PlatformKey) {
     if (!result) return;
-    await navigator.clipboard.writeText(result.platforms?.[key] ?? "");
+    const base = result.platforms?.[key] ?? "";
+    const imgBlock =
+      uploadedImages.length > 0
+        ? `\n\n📷 画像:\n${uploadedImages.join("\n")}`
+        : "";
+    await navigator.clipboard.writeText(base + imgBlock);
     setCopied(key);
     setTimeout(() => setCopied(null), 1500);
   }
@@ -252,6 +320,16 @@ export default function Home() {
         if (v.inputMode === "memo" || v.inputMode === "form") setInputMode(v.inputMode);
         if (v.form && typeof v.form === "object") setForm((f) => ({ ...f, ...v.form }));
       }
+      const savedResult = localStorage.getItem("yb-result");
+      if (savedResult) {
+        const r = JSON.parse(savedResult);
+        if (r?.platforms?.line) setResult(r);
+      }
+      const savedImages = localStorage.getItem("yb-images");
+      if (savedImages) {
+        const imgs = JSON.parse(savedImages);
+        if (Array.isArray(imgs)) setUploadedImages(imgs);
+      }
     } catch {
       /* 壊れていても無視 */
     }
@@ -265,6 +343,19 @@ export default function Home() {
       /* 容量超過等は無視 */
     }
   }, [rawText, kind, inputMode, form]);
+  useEffect(() => {
+    if (!hydrated.current) return;
+    try {
+      if (result) localStorage.setItem("yb-result", JSON.stringify(result));
+      else localStorage.removeItem("yb-result");
+    } catch { /* 容量超過等は無視 */ }
+  }, [result]);
+  useEffect(() => {
+    if (!hydrated.current) return;
+    try {
+      localStorage.setItem("yb-images", JSON.stringify(uploadedImages));
+    } catch { /* 容量超過等は無視 */ }
+  }, [uploadedImages]);
 
   // 生成できたら結果へスムーズスクロール
   useEffect(() => {
@@ -294,6 +385,8 @@ export default function Home() {
     setError(null);
     setAnswers({});
     setRefine("");
+    setUploadedImages([]);
+    setSlides(null);
   }
 
   const currentText = result?.platforms?.[tab] ?? "";
@@ -570,6 +663,55 @@ export default function Home() {
             <pre className="max-h-[28rem] overflow-auto whitespace-pre-wrap rounded-xl bg-slate-50 p-4 text-[13px] leading-relaxed text-slate-800 ring-1 ring-slate-100">
               {currentText}
             </pre>
+            {/* 画像アップロード */}
+            <div className="mt-3 rounded-xl bg-slate-50 p-3 ring-1 ring-slate-100">
+              <div className="flex items-center gap-2">
+                <p className="flex-1 text-xs font-medium text-slate-600">📷 画像を添付</p>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/gif,image/webp"
+                  className="hidden"
+                  onChange={handleUpload}
+                />
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploading}
+                  className="rounded-lg bg-white px-3 py-1.5 text-xs font-medium text-slate-700 ring-1 ring-slate-200 hover:bg-slate-100 disabled:opacity-40"
+                >
+                  {uploading ? "アップロード中…" : "+ 画像を選択"}
+                </button>
+              </div>
+              {uploadError && (
+                <p className="mt-1.5 text-xs text-red-600">{uploadError}</p>
+              )}
+              {uploadedImages.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {uploadedImages.map((url, i) => (
+                    <div key={i} className="group relative">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={url}
+                        alt={`uploaded-${i}`}
+                        className="h-16 w-16 rounded-lg object-cover ring-1 ring-slate-200"
+                      />
+                      <button
+                        onClick={() => setUploadedImages((prev) => prev.filter((_, j) => j !== i))}
+                        className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] text-white opacity-0 shadow group-hover:opacity-100"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {uploadedImages.length > 0 && (
+                <p className="mt-1.5 text-xs text-slate-400">
+                  コピー時に画像URLが末尾に追加されます
+                </p>
+              )}
+            </div>
+
             <div className="mt-3 flex gap-2">
               <button
                 onClick={() => copy(tab)}
@@ -619,20 +761,45 @@ export default function Home() {
             <label className="mb-2 block text-sm font-semibold text-slate-700">
               💬 気になる所をAIに相談して修正
             </label>
-            <div className="flex gap-2">
-              <input
+            <div className="flex flex-col gap-2">
+              <textarea
+                rows={3}
                 value={refine}
                 onChange={(e) => setRefine(e.target.value)}
                 placeholder="例：LINE版もっと短く / もっと熱く / 流れの3つは消して"
-                className="flex-1 rounded-xl border border-slate-300 p-2.5 text-sm focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
-                onKeyDown={(e) => e.key === "Enter" && handleRefine()}
+                className="w-full resize-y rounded-xl border border-slate-300 p-2.5 text-sm focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) handleRefine();
+                }}
               />
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-slate-400">Ctrl+Enter で送信</p>
+                <button
+                  onClick={handleRefine}
+                  disabled={loading || !refine.trim()}
+                  className="rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white transition hover:brightness-110 disabled:opacity-40"
+                >
+                  修正
+                </button>
+              </div>
+            </div>
+          </section>
+
+          {/* スライド下書き */}
+          <section className="mt-4 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-semibold text-slate-700">📊 スライド下書きを生成</p>
+                <p className="mt-0.5 text-xs text-slate-400">
+                  中間JSONからスライド構成（4〜7枚）を自動で作ります
+                </p>
+              </div>
               <button
-                onClick={handleRefine}
-                disabled={loading || !refine.trim()}
-                className="rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white transition hover:brightness-110 disabled:opacity-40"
+                onClick={handleGenerateSlides}
+                disabled={slidesLoading}
+                className="rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:brightness-110 disabled:opacity-40"
               >
-                修正
+                {slidesLoading ? "生成中…" : "生成する"}
               </button>
             </div>
           </section>
@@ -714,6 +881,65 @@ export default function Home() {
                 {posting ? "送信中…" : "送信する"}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* スライド下書きモーダル */}
+      {slidesOpen && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 px-4 py-8 backdrop-blur-sm">
+          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-base font-bold text-slate-800">📊 スライド下書き</h2>
+              <button
+                onClick={() => setSlidesOpen(false)}
+                className="rounded-full p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+              >
+                ✕
+              </button>
+            </div>
+            {slidesLoading && (
+              <p className="py-8 text-center text-sm text-slate-500">生成中…</p>
+            )}
+            {slidesError && (
+              <p className="rounded-xl bg-red-50 p-4 text-sm text-red-600">{slidesError}</p>
+            )}
+            {slides && (
+              <div className="space-y-3">
+                {slides.map((slide, i) => (
+                  <div key={i} className="rounded-xl bg-slate-50 p-4 ring-1 ring-slate-200">
+                    <div className="mb-2 flex items-start justify-between gap-2">
+                      <p className="text-xs font-medium text-slate-400">スライド {i + 1}</p>
+                      <button
+                        onClick={() => copySlide(i, slide)}
+                        className="shrink-0 rounded-lg bg-white px-2.5 py-1 text-xs font-medium text-slate-600 ring-1 ring-slate-200 hover:bg-slate-100"
+                      >
+                        {copiedSlide === i ? "✅ コピー済" : "コピー"}
+                      </button>
+                    </div>
+                    <p className="mb-2 text-sm font-bold text-slate-800">{slide.title}</p>
+                    <ul className="space-y-1">
+                      {slide.bullets.map((b, j) => (
+                        <li key={j} className="text-sm text-slate-700 before:mr-1.5 before:content-['・']">
+                          {b}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+                <button
+                  onClick={() => {
+                    const all = slides
+                      .map((s, i) => `【スライド${i + 1}】${s.title}\n${s.bullets.map((b) => `・${b}`).join("\n")}`)
+                      .join("\n\n");
+                    navigator.clipboard.writeText(all);
+                  }}
+                  className="mt-1 w-full rounded-xl bg-slate-800 py-2.5 text-sm font-semibold text-white transition hover:brightness-110"
+                >
+                  📋 全スライドをまとめてコピー
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}
