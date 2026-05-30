@@ -58,14 +58,33 @@ interface ComposeBody {
   json?: unknown;
   instruction?: string;
   today?: string; // 基準日 (YYYY-MM-DD)。曖昧な日付解決用
+  profile?: {
+    circle_name?: string;
+    leader_name?: string;
+    def_location?: string;
+    note?: string;
+  };
 }
 
 export function buildUserText(body: ComposeBody): string {
   const kind = body.kind === "event" ? "event" : "activity";
   const today = body.today ? `\n# 今日の日付（曖昧な日付の解決に使う）\n${body.today}\n` : "";
 
+  const p = body.profile;
+  const profile =
+    p && (p.circle_name || p.leader_name || p.def_location || p.note)
+      ? `\n# サークルプロフィール（告知文に反映する）\n${[
+          p.circle_name && `サークル名: ${p.circle_name}`,
+          p.leader_name && `担当者名: ${p.leader_name}`,
+          p.def_location && `よく使う場所: ${p.def_location}`,
+          p.note && `定型補足メモ: ${p.note}`,
+        ]
+          .filter(Boolean)
+          .join("\n")}\n`
+      : "";
+
   if (body.instruction && body.json) {
-    return `種別: ${kind}${today}
+    return `種別: ${kind}${today}${profile}
 # 現在の中間JSON
 ${JSON.stringify(body.json, null, 2)}
 
@@ -76,14 +95,14 @@ ${body.instruction}
   }
 
   if (body.json) {
-    return `種別: ${kind}${today}
+    return `種別: ${kind}${today}${profile}
 # 確定済みの中間JSON（内容は尊重し、勝手に変えない）
 ${JSON.stringify(body.json, null, 2)}
 
 このJSONから全PF文面を生成してください（missing は再評価して返す）。`;
   }
 
-  return `種別: ${kind}${today}
+  return `種別: ${kind}${today}${profile}
 # ふんわりメモ
 ${body.rawText ?? ""}
 
