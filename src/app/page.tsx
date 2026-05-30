@@ -64,10 +64,16 @@ export default function Home() {
   const [copied, setCopied] = useState<PlatformKey | null>(null);
   const [preview, setPreview] = useState(false); // 開発時に演出を眺めるためのプレビュー
 
-  // 自動投稿の確認モーダル
+  // 即時送信の確認モーダル
   const [postTarget, setPostTarget] = useState<{ platform: "discord" | "teams"; text: string } | null>(null);
   const [posting, setPosting] = useState(false);
   const [postResult, setPostResult] = useState<{ ok: boolean; msg: string } | null>(null);
+
+  // 予約投稿モーダル
+  const [scheduleModal, setScheduleModal] = useState<{ platform: "discord" | "teams"; text: string } | null>(null);
+  const [scheduleDate, setScheduleDate] = useState("");
+  const [scheduleSaving, setScheduleSaving] = useState(false);
+  const [scheduleResult, setScheduleResult] = useState<string | null>(null);
 
   // 入力方法（メモ書き / フォーム）と、フォーム入力の中身
   const [inputMode, setInputMode] = useState<"memo" | "form">("memo");
@@ -159,6 +165,25 @@ export default function Home() {
   function handleRefine() {
     if (!result || !refine.trim()) return;
     callApi({ json: result.json, instruction: refine });
+  }
+
+  async function saveSchedule() {
+    if (!scheduleModal || !scheduleDate) return;
+    setScheduleSaving(true);
+    try {
+      const res = await fetch("/api/schedule", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...scheduleModal, scheduled_date: scheduleDate }),
+      });
+      if (!res.ok) throw new Error("保存失敗");
+      setScheduleResult("✅ 予約しました！当日の朝に自動送信されます。");
+    } catch {
+      setScheduleResult("⚠️ 予約の保存に失敗しました");
+    } finally {
+      setScheduleSaving(false);
+      setScheduleModal(null);
+    }
   }
 
   async function sendPost() {
@@ -556,21 +581,36 @@ export default function Home() {
                   : `📋 ${PLATFORMS[tab].label}版をコピー`}
               </button>
               {(tab === "discord" || tab === "teams") && (
-                <button
-                  onClick={() => {
-                    setPostResult(null);
-                    setPostTarget({ platform: tab, text: currentText });
-                  }}
-                  className="rounded-xl bg-slate-800 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:brightness-110"
-                >
-                  📤 送信
-                </button>
+                <>
+                  <button
+                    onClick={() => {
+                      setPostResult(null);
+                      setPostTarget({ platform: tab, text: currentText });
+                    }}
+                    className="rounded-xl bg-slate-800 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:brightness-110"
+                  >
+                    📤 今すぐ送信
+                  </button>
+                  <button
+                    onClick={() => {
+                      setScheduleResult(null);
+                      setScheduleDate("");
+                      setScheduleModal({ platform: tab, text: currentText });
+                    }}
+                    className="rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:brightness-110"
+                  >
+                    📅 予約
+                  </button>
+                </>
               )}
             </div>
             {postResult && (
               <p className={`mt-2 text-sm ${postResult.ok ? "text-green-600" : "text-red-600"}`}>
                 {postResult.ok ? "✅" : "⚠️"} {postResult.msg}
               </p>
+            )}
+            {scheduleResult && (
+              <p className="mt-2 text-sm text-indigo-600">{scheduleResult}</p>
             )}
           </section>
 
@@ -604,6 +644,46 @@ export default function Home() {
             onRegen={handleRegenFromJson}
           />
         </>
+      )}
+
+      {/* 予約投稿モーダル */}
+      {scheduleModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
+            <h2 className="mb-1 text-base font-bold text-slate-800">
+              📅 {scheduleModal.platform === "discord" ? "Discord" : "Teams"} 予約投稿
+            </h2>
+            <p className="mb-3 text-xs text-slate-500">
+              指定した日の朝8時（JST）に自動送信されます。
+            </p>
+            <pre className="mb-4 max-h-36 overflow-auto whitespace-pre-wrap rounded-xl bg-slate-50 p-3 text-[12px] leading-relaxed text-slate-700 ring-1 ring-slate-200">
+              {scheduleModal.text}
+            </pre>
+            <label className="block text-xs font-medium text-slate-500 mb-1">送信日</label>
+            <input
+              type="date"
+              value={scheduleDate}
+              min={new Date().toISOString().slice(0, 10)}
+              onChange={(e) => setScheduleDate(e.target.value)}
+              className="w-full rounded-xl border border-slate-300 p-2.5 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200 mb-4"
+            />
+            <div className="flex gap-2">
+              <button
+                onClick={() => setScheduleModal(null)}
+                className="flex-1 rounded-xl py-2.5 text-sm font-medium text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50"
+              >
+                キャンセル
+              </button>
+              <button
+                onClick={saveSchedule}
+                disabled={scheduleSaving || !scheduleDate}
+                className="flex-1 rounded-xl bg-indigo-600 py-2.5 text-sm font-semibold text-white shadow-sm hover:brightness-110 disabled:opacity-40"
+              >
+                {scheduleSaving ? "保存中…" : "予約する"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* 送信確認モーダル */}
