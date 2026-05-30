@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import type {
   BroadcastJson,
   BroadcastKind,
@@ -166,8 +167,33 @@ export default function Home() {
   const hydrated = useRef(false);
 
   // 入力をローカル保存（リロードしても消えない）。まず復元 → 以降は変更のたび保存
+  // 履歴ページからの「複製」も yb-duplicate で受け取る
   useEffect(() => {
     try {
+      // 前回複製
+      const dup = localStorage.getItem("yb-duplicate");
+      if (dup) {
+        localStorage.removeItem("yb-duplicate");
+        const json = JSON.parse(dup) as BroadcastJson;
+        if (json.kind === "activity" || json.kind === "event") setKind(json.kind);
+        setInputMode("form");
+        setForm({
+          title: json.title ?? "",
+          start: json.datetime?.start ?? "",
+          location: json.location?.name ?? "",
+          summary: json.summary ?? "",
+          body: json.body?.join("、") ?? "",
+          bring: json.bring?.join("、") ?? "",
+          hook: json.hook ?? "",
+          note: json.note ?? "",
+          fee: json.fee ?? "",
+          guests: json.guests?.join("、") ?? "",
+          cta: json.cta ?? "",
+        });
+        hydrated.current = true;
+        return;
+      }
+
       const saved = localStorage.getItem("yb-input");
       if (saved) {
         const v = JSON.parse(saved);
@@ -244,14 +270,22 @@ export default function Home() {
             ふんわりメモ → 各SNS向けの告知文をサッと
           </p>
         </div>
-        {(result || rawText) && (
-          <button
-            onClick={reset}
-            className="ml-auto rounded-full px-3 py-1.5 text-xs font-medium text-slate-500 ring-1 ring-slate-200 transition hover:bg-white hover:text-slate-700"
+        <div className="ml-auto flex gap-2">
+          <Link
+            href="/history"
+            className="rounded-full px-3 py-1.5 text-xs font-medium text-slate-500 ring-1 ring-slate-200 transition hover:bg-white hover:text-slate-700"
           >
-            ✏️ 新規作成
-          </button>
-        )}
+            📋 履歴
+          </Link>
+          {(result || rawText) && (
+            <button
+              onClick={reset}
+              className="rounded-full px-3 py-1.5 text-xs font-medium text-slate-500 ring-1 ring-slate-200 transition hover:bg-white hover:text-slate-700"
+            >
+              ✏️ 新規作成
+            </button>
+          )}
+        </div>
       </header>
 
       {/* 切替トグル：告知の種類 ＋ 入力方法 */}

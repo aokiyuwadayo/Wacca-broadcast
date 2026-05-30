@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { compose } from "@/lib/anthropic";
 import { buildUserText } from "@/lib/prompts";
 import { fetchEventSource } from "@/lib/fetch-url";
+import { createClient } from "@supabase/supabase-js";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -25,6 +26,25 @@ export async function POST(req: NextRequest) {
 
     const userText = buildUserText(body);
     const result = await compose(userText);
+
+    // Supabase に保存（env が揃っている時だけ。失敗しても生成結果は返す）
+    if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      try {
+        const db = createClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL,
+          process.env.SUPABASE_SERVICE_ROLE_KEY,
+        );
+        await db.from("broadcasts").insert({
+          kind: result.json.kind,
+          title: result.json.title,
+          json: result.json,
+          platforms: result.platforms,
+        });
+      } catch {
+        // 保存失敗は無視して生成結果を返す
+      }
+    }
+
     return Response.json(result);
   } catch (e) {
     const message = e instanceof Error ? e.message : "生成に失敗しました";
