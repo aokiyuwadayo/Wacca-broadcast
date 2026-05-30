@@ -64,6 +64,11 @@ export default function Home() {
   const [copied, setCopied] = useState<PlatformKey | null>(null);
   const [preview, setPreview] = useState(false); // 開発時に演出を眺めるためのプレビュー
 
+  // 自動投稿の確認モーダル
+  const [postTarget, setPostTarget] = useState<{ platform: "discord" | "teams"; text: string } | null>(null);
+  const [posting, setPosting] = useState(false);
+  const [postResult, setPostResult] = useState<{ ok: boolean; msg: string } | null>(null);
+
   // 入力方法（メモ書き / フォーム）と、フォーム入力の中身
   const [inputMode, setInputMode] = useState<"memo" | "form">("memo");
   const [form, setForm] = useState({
@@ -154,6 +159,26 @@ export default function Home() {
   function handleRefine() {
     if (!result || !refine.trim()) return;
     callApi({ json: result.json, instruction: refine });
+  }
+
+  async function sendPost() {
+    if (!postTarget) return;
+    setPosting(true);
+    try {
+      const res = await fetch("/api/post", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(postTarget),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "送信失敗");
+      setPostResult({ ok: true, msg: "送信しました！" });
+    } catch (e) {
+      setPostResult({ ok: false, msg: e instanceof Error ? e.message : "送信に失敗しました" });
+    } finally {
+      setPosting(false);
+      setPostTarget(null);
+    }
   }
 
   async function copy(key: PlatformKey) {
@@ -520,15 +545,33 @@ export default function Home() {
             <pre className="max-h-[28rem] overflow-auto whitespace-pre-wrap rounded-xl bg-slate-50 p-4 text-[13px] leading-relaxed text-slate-800 ring-1 ring-slate-100">
               {currentText}
             </pre>
-            <button
-              onClick={() => copy(tab)}
-              style={{ backgroundColor: PLATFORMS[tab].color }}
-              className="mt-3 w-full rounded-xl px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:brightness-110"
-            >
-              {copied === tab
-                ? "✅ コピーした！貼り付けてね"
-                : `📋 ${PLATFORMS[tab].label}版をコピー`}
-            </button>
+            <div className="mt-3 flex gap-2">
+              <button
+                onClick={() => copy(tab)}
+                style={{ backgroundColor: PLATFORMS[tab].color }}
+                className="flex-1 rounded-xl px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:brightness-110"
+              >
+                {copied === tab
+                  ? "✅ コピーした！貼り付けてね"
+                  : `📋 ${PLATFORMS[tab].label}版をコピー`}
+              </button>
+              {(tab === "discord" || tab === "teams") && (
+                <button
+                  onClick={() => {
+                    setPostResult(null);
+                    setPostTarget({ platform: tab, text: currentText });
+                  }}
+                  className="rounded-xl bg-slate-800 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:brightness-110"
+                >
+                  📤 送信
+                </button>
+              )}
+            </div>
+            {postResult && (
+              <p className={`mt-2 text-sm ${postResult.ok ? "text-green-600" : "text-red-600"}`}>
+                {postResult.ok ? "✅" : "⚠️"} {postResult.msg}
+              </p>
+            )}
           </section>
 
           {/* AIに相談して修正 */}
@@ -561,6 +604,38 @@ export default function Home() {
             onRegen={handleRegenFromJson}
           />
         </>
+      )}
+
+      {/* 送信確認モーダル */}
+      {postTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
+            <h2 className="mb-1 text-base font-bold text-slate-800">
+              {postTarget.platform === "discord" ? "🎮 Discord" : "💼 Teams"} に送信しますか？
+            </h2>
+            <p className="mb-3 text-xs text-red-600 font-medium">
+              ⚠️ 送信すると即座に投稿されます。内容を確認してください。
+            </p>
+            <pre className="mb-4 max-h-48 overflow-auto whitespace-pre-wrap rounded-xl bg-slate-50 p-3 text-[12px] leading-relaxed text-slate-700 ring-1 ring-slate-200">
+              {postTarget.text}
+            </pre>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setPostTarget(null)}
+                className="flex-1 rounded-xl py-2.5 text-sm font-medium text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50"
+              >
+                キャンセル
+              </button>
+              <button
+                onClick={sendPost}
+                disabled={posting}
+                className="flex-1 rounded-xl bg-red-500 py-2.5 text-sm font-semibold text-white shadow-sm hover:brightness-110 disabled:opacity-40"
+              >
+                {posting ? "送信中…" : "送信する"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       <footer className="mt-10 text-center text-xs text-slate-400">

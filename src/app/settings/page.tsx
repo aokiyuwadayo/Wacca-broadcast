@@ -9,9 +9,18 @@ type Settings = {
   leader_name: string;
   def_location: string;
   note: string;
+  discord_webhook: string;
+  teams_webhook: string;
 };
 
-const EMPTY: Settings = { circle_name: "", leader_name: "", def_location: "", note: "" };
+const EMPTY: Settings = {
+  circle_name: "",
+  leader_name: "",
+  def_location: "",
+  note: "",
+  discord_webhook: "",
+  teams_webhook: "",
+};
 
 export default function SettingsPage() {
   const [form, setForm] = useState<Settings>(EMPTY);
@@ -73,6 +82,35 @@ export default function SettingsPage() {
                 value={form.leader_name}
                 onChange={set("leader_name")}
               />
+            </div>
+          </section>
+
+          <section className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
+            <h2 className="mb-4 text-sm font-semibold text-slate-700">自動投稿の接続先</h2>
+            <p className="mb-3 text-xs text-slate-400">
+              設定すると生成後に「送信」ボタンが出ます。送信前に必ず確認ダイアログが出ます。
+            </p>
+            <div className="space-y-3">
+              <Field
+                label="Discord Webhook URL"
+                placeholder="https://discord.com/api/webhooks/..."
+                value={form.discord_webhook}
+                onChange={set("discord_webhook")}
+              />
+              <div>
+                <label className="block text-xs font-medium text-slate-500">
+                  Teams Workflow URL
+                  <span className="ml-1 font-normal text-slate-400">
+                    （Power Automate → Instant cloud flow → HTTP request）
+                  </span>
+                </label>
+                <input
+                  value={form.teams_webhook}
+                  onChange={(e) => set("teams_webhook")(e.target.value)}
+                  placeholder="https://prod-xx.westus.logic.azure.com/..."
+                  className="mt-1 w-full rounded-xl border border-slate-300 p-2.5 text-sm focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
+                />
+              </div>
             </div>
           </section>
 
