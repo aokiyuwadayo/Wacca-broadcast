@@ -218,15 +218,14 @@ export default function Home() {
     <main className="mx-auto max-w-2xl px-4 py-8">
       {/* ヘッダー */}
       <header className="mb-7 flex items-center gap-3">
-        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-brand to-brand-accent text-2xl shadow-sm">
-          📣
+        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-brand to-brand-accent shadow-sm">
+          <span className="block h-5 w-5 rounded-full border-[3px] border-white" />
         </div>
         <div>
           <h1 className="text-2xl font-bold tracking-tight">
             <span className="bg-gradient-to-r from-brand to-brand-accent bg-clip-text text-transparent">
-              YUWA
+              Wacca
             </span>
-            <span className="text-slate-800"> Broadcast</span>
           </h1>
           <p className="text-xs text-slate-500">
             ふんわりメモ → 各SNS向けの告知文をサッと
@@ -483,7 +482,7 @@ export default function Home() {
       )}
 
       <footer className="mt-10 text-center text-xs text-slate-400">
-        YUWA Broadcast · Phase A · 設計は docs/design-doc.md
+        Wacca · Phase A · 設計は docs/design-doc.md
         {process.env.NODE_ENV === "development" && (
           <>
             {" · "}

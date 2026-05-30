@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "YUWA Broadcast",
-  description: "サークルの告知をふんわりメモから各PF向けに生成するツール（Phase A）",
+  title: "Wacca（輪っか）",
+  description: "サークルの告知をふんわりメモから各SNS向けに生成するツール",
 };
 
 export default function RootLayout({
