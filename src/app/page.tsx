@@ -8,6 +8,7 @@ import type {
   MissingField,
   Platforms,
 } from "@/lib/schema";
+import { splitList } from "@/lib/util";
 
 type PlatformKey = keyof Platforms;
 const PLATFORMS: Record<PlatformKey, { label: string; emoji: string; color: string }> = {
@@ -19,6 +20,34 @@ const PLATFORMS: Record<PlatformKey, { label: string; emoji: string; color: stri
 function todayISO(): string {
   return new Date().toISOString().slice(0, 10);
 }
+
+// 鍵なしで全UIを確認・デモするためのサンプル結果（API を呼ばない）
+const SAMPLE_RESULT: ComposeResult = {
+  json: {
+    kind: "activity",
+    title: "立花祭の出展内容を決める回",
+    datetime: { start: "2026-06-04T16:30", end: null },
+    location: { name: "E棟3階 R教室", access: "", online_url: "" },
+    summary: "立花祭（福岡工業大学の文化祭）の出展内容を決める",
+    body: ["活動スライドで方向性を共有", "出展アイデアを出し合う", "出展内容を決定"],
+    bring: [],
+    rsvp: null,
+    fee: null,
+    guests: [],
+    cta: null,
+    hook: "おもしろい立花祭にできるかは今回次第！",
+    note: "19:00に教室クローズ",
+    links: [],
+    images: [],
+  },
+  missing: [],
+  assumptions: ["(提案) 当日の流れを3ステップで補完しました"],
+  platforms: {
+    line: "📣 起業部 今週の活動！\n━━━━━━━━\n🗓 6/4(木) 16:30〜\n📍 E棟3階 R教室\n🎒 持ち物：なし\n━━━━━━━━\n\n🎯 立花祭の出展内容を決める！\n\n✨ こんな人に来てほしい\n・アイデアを形にしたい人\n・0→1を体験したい人\n\n👉 来た人の声がそのまま出展に反映されます。\n初参加も大歓迎🙌",
+    teams: "## 📢 起業部 活動のお知らせ（6/4）\n\n🗓 6月4日(木) 16:30〜（19:00 教室クローズ）\n📍 E棟3階 R教室\n\n### 🎯 今回のテーマ\n立花祭の出展内容を決めます。\n\n### 📋 当日の流れ\n・活動スライドで方向性を共有\n・出展アイデアを出し合う\n・出展内容を決定\n\n初参加・途中参加も歓迎です。",
+    discord: "**📣 起業部 活動（6/4）**\n\n🗓 6/4(木) 16:30〜 / 📍 E棟3階 R教室\n\n🎯 **立花祭の出展内容を決める！**\nアイデア出し→方向性決定までやります。\n気軽に来てね〜 🙌",
+  },
+};
 
 export default function Home() {
   const [kind, setKind] = useState<BroadcastKind>("activity");
@@ -91,8 +120,6 @@ export default function Home() {
   }
 
   // 3') フォーム入力モードから生成（フォームの項目を中間JSONに組み立てて投入）
-  const splitList = (v: string) =>
-    v.split(/[、,]/).map((s) => s.trim()).filter(Boolean);
   function handleGenerateFromForm() {
     if (!form.title.trim()) return;
     const json: BroadcastJson = {
@@ -317,7 +344,7 @@ export default function Home() {
 
           {/* PF別プレビュー＋コピー */}
           <section className="mt-4 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
-            <div className="mb-3 flex items-center gap-2">
+            <div className="mb-3 flex flex-wrap items-center gap-2">
               {(Object.keys(PLATFORMS) as PlatformKey[]).map((k) => (
                 <button
                   key={k}
@@ -398,6 +425,16 @@ export default function Home() {
               className="underline hover:text-brand"
             >
               🎬 演出プレビュー
+            </button>
+            {" · "}
+            <button
+              onClick={() => {
+                setResult(SAMPLE_RESULT);
+                setError(null);
+              }}
+              className="underline hover:text-brand"
+            >
+              🧪 デモ出力
             </button>
           </>
         )}
