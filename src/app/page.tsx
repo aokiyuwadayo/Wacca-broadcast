@@ -155,6 +155,63 @@ export default function Home() {
     setTimeout(() => setCopied(null), 1500);
   }
 
+  const resultRef = useRef<HTMLDivElement>(null);
+  const hydrated = useRef(false);
+
+  // 入力をローカル保存（リロードしても消えない）。まず復元 → 以降は変更のたび保存
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("yb-input");
+      if (saved) {
+        const v = JSON.parse(saved);
+        if (typeof v.rawText === "string") setRawText(v.rawText);
+        if (v.kind === "activity" || v.kind === "event") setKind(v.kind);
+        if (v.inputMode === "memo" || v.inputMode === "form") setInputMode(v.inputMode);
+        if (v.form && typeof v.form === "object") setForm((f) => ({ ...f, ...v.form }));
+      }
+    } catch {
+      /* 壊れていても無視 */
+    }
+    hydrated.current = true;
+  }, []);
+  useEffect(() => {
+    if (!hydrated.current) return;
+    try {
+      localStorage.setItem("yb-input", JSON.stringify({ rawText, kind, inputMode, form }));
+    } catch {
+      /* 容量超過等は無視 */
+    }
+  }, [rawText, kind, inputMode, form]);
+
+  // 生成できたら結果へスムーズスクロール
+  useEffect(() => {
+    if (result) {
+      resultRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [result]);
+
+  // 新規作成（全部クリア）
+  function reset() {
+    setResult(null);
+    setRawText("");
+    setForm({
+      title: "",
+      start: "",
+      location: "",
+      summary: "",
+      body: "",
+      bring: "",
+      hook: "",
+      note: "",
+      fee: "",
+      guests: "",
+      cta: "",
+    });
+    setError(null);
+    setAnswers({});
+    setRefine("");
+  }
+
   const currentText = result?.platforms?.[tab] ?? "";
 
   return (
@@ -175,6 +232,14 @@ export default function Home() {
             ふんわりメモ → 各SNS向けの告知文をサッと
           </p>
         </div>
+        {(result || rawText) && (
+          <button
+            onClick={reset}
+            className="ml-auto rounded-full px-3 py-1.5 text-xs font-medium text-slate-500 ring-1 ring-slate-200 transition hover:bg-white hover:text-slate-700"
+          >
+            ✏️ 新規作成
+          </button>
+        )}
       </header>
 
       {/* 切替トグル：告知の種類 ＋ 入力方法 */}
@@ -239,11 +304,15 @@ export default function Home() {
             <textarea
               value={rawText}
               onChange={(e) => setRawText(e.target.value)}
+              onKeyDown={(e) => {
+                if ((e.metaKey || e.ctrlKey) && e.key === "Enter") handleGenerate();
+              }}
               rows={5}
               placeholder="例：来週木曜 16:30〜 E棟3階R教室で立花祭の出展内容を決める。持ち物なし。"
               className="w-full resize-y rounded-xl border border-slate-300 p-3 text-sm focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
             />
             <div className="mt-3 flex items-center gap-3">
+              <span className="order-2 text-xs text-slate-400">⌘/Ctrl+Enter で生成</span>
               <button
                 onClick={handleGenerate}
                 disabled={loading || !rawText.trim()}
@@ -298,6 +367,7 @@ export default function Home() {
 
       {result && (
         <>
+          <div ref={resultRef} className="scroll-mt-4" />
           {/* 不足項目（ガイド） */}
           {result.missing.length > 0 && (
             <section className="mt-4 rounded-2xl bg-amber-50 p-5 ring-1 ring-amber-200">
