@@ -12,6 +12,7 @@ type Settings = {
   discord_webhook: string;
   teams_webhook: string;
   slack_webhook: string;
+  style_memo: string;
 };
 
 type RegularSchedule = {
@@ -32,6 +33,7 @@ const EMPTY: Settings = {
   discord_webhook: "",
   teams_webhook: "",
   slack_webhook: "",
+  style_memo: "",
 };
 
 const DAY_NAMES = ["日", "月", "火", "水", "木", "金", "土"];
@@ -169,6 +171,23 @@ export default function SettingsPage() {
                   className="mt-1 w-full rounded-xl border border-slate-300 p-2.5 text-sm focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
                 />
               </div>
+            </div>
+          </section>
+
+          <section className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
+            <h2 className="mb-4 text-sm font-semibold text-slate-700">✍️ 文体・トーンの設定</h2>
+            <p className="mb-3 text-xs text-slate-400">
+              AI がこの指示と過去の告知文（最新5件）を参考にして、あなたらしい文体で生成します。
+            </p>
+            <div>
+              <label className="block text-xs font-medium text-slate-500">文体・トーンの要望</label>
+              <textarea
+                rows={3}
+                value={form.style_memo}
+                onChange={(e) => setForm((f) => ({ ...f, style_memo: e.target.value }))}
+                placeholder="例：絵文字多め、フランクに、「〜だよ！」系のノリで。締めは必ず「気軽に来てね〜」"
+                className="mt-1 w-full resize-y rounded-xl border border-slate-300 p-3 text-sm focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
+              />
             </div>
           </section>
 

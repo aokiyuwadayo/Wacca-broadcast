@@ -5,23 +5,25 @@ import { NextRequest, NextResponse } from "next/server";
 // - Vercel など公開環境では必ず設定する（URL を知る人が中央 API キーを叩いて課金される事故を防ぐ）
 // - ローカル開発では未設定でよい（その場合は素通り）
 export function middleware(req: NextRequest) {
-  const pw = process.env.SITE_PASSWORD;
-  if (!pw) return NextResponse.next();
+  const pwEnv = process.env.SITE_PASSWORD;
+  if (!pwEnv) return NextResponse.next();
+
+  // カンマ区切りで複数パスワードに対応（複数管理者）
+  const validPasswords = pwEnv.split(",").map((p) => p.trim()).filter(Boolean);
 
   const auth = req.headers.get("authorization");
   if (auth) {
     const [scheme, encoded] = auth.split(" ");
     if (scheme === "Basic" && encoded) {
-      // "user:password" の password 部分だけ照合（user は任意）
       const decoded = atob(encoded);
       const password = decoded.slice(decoded.indexOf(":") + 1);
-      if (password === pw) return NextResponse.next();
+      if (validPasswords.includes(password)) return NextResponse.next();
     }
   }
 
   return new NextResponse("認証が必要です", {
     status: 401,
-    headers: { "WWW-Authenticate": 'Basic realm="YUWA Broadcast", charset="UTF-8"' },
+    headers: { "WWW-Authenticate": 'Basic realm="Wacca Cast", charset="UTF-8"' },
   });
 }
 

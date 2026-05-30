@@ -33,19 +33,31 @@ export async function POST(req: NextRequest) {
       delete body.url;
     }
 
-    // 設定（サークルプロフィール）を取得してプロンプトに渡す
+    // 設定（プロフィール）＋過去の告知文（文体学習 few-shot）を取得
     let profile: Record<string, string> | undefined;
+    let examples: Array<{ title: string; line: string }> | undefined;
     if (supabaseKey) {
       try {
-        const settingsDb = createClient(supabaseUrl, supabaseKey);
-        const { data } = await settingsDb.from("settings").select("*").limit(1).maybeSingle();
-        if (data) profile = data;
+        const db2 = createClient(supabaseUrl, supabaseKey);
+        const [{ data: settingsData }, { data: pastData }] = await Promise.all([
+          db2.from("settings").select("*").limit(1).maybeSingle(),
+          db2.from("broadcasts").select("title, platforms").order("created_at", { ascending: false }).limit(5),
+        ]);
+        if (settingsData) profile = settingsData;
+        if (pastData && pastData.length > 0) {
+          examples = pastData
+            .map((b: { title: string; platforms: Record<string, string> }) => ({
+              title: b.title,
+              line: (b.platforms as Record<string, string>)?.line ?? "",
+            }))
+            .filter((e) => e.line);
+        }
       } catch {
-        // 設定取得失敗は無視
+        // 取得失敗は無視
       }
     }
 
-    const userText = buildUserText({ ...body, profile });
+    const userText = buildUserText({ ...body, profile, examples });
     const result = await compose(userText);
 
     // Supabase に保存（env が揃っている時だけ。失敗しても生成結果は返す）
