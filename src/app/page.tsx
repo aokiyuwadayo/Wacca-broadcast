@@ -218,14 +218,19 @@ export default function Home() {
     <main className="mx-auto max-w-2xl px-4 py-8">
       {/* ヘッダー */}
       <header className="mb-7 flex items-center gap-3">
-        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-brand to-brand-accent shadow-sm">
-          <span className="block h-5 w-5 rounded-full border-[3px] border-white" />
+        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500 via-brand to-brand-accent shadow-sm">
+          <svg viewBox="0 0 24 24" fill="none" stroke="white" className="h-7 w-7">
+            <circle cx="12" cy="12" r="2.5" strokeWidth="2" />
+            <circle cx="12" cy="12" r="6" strokeWidth="2" opacity="0.7" />
+            <circle cx="12" cy="12" r="9.5" strokeWidth="2" opacity="0.4" />
+          </svg>
         </div>
         <div>
           <h1 className="text-2xl font-bold tracking-tight">
-            <span className="bg-gradient-to-r from-brand to-brand-accent bg-clip-text text-transparent">
+            <span className="bg-gradient-to-r from-blue-500 via-brand to-brand-accent bg-clip-text text-transparent">
               Wacca
             </span>
+            <span className="text-slate-400"> Cast</span>
           </h1>
           <p className="text-xs text-slate-500">
             ふんわりメモ → 各SNS向けの告知文をサッと
@@ -482,7 +487,7 @@ export default function Home() {
       )}
 
       <footer className="mt-10 text-center text-xs text-slate-400">
-        Wacca · Phase A · 設計は docs/design-doc.md
+        Wacca Cast · Phase A · 設計は docs/design-doc.md
         {process.env.NODE_ENV === "development" && (
           <>
             {" · "}
