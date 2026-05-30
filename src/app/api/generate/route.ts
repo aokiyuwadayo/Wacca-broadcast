@@ -28,12 +28,12 @@ export async function POST(req: NextRequest) {
     const result = await compose(userText);
 
     // Supabase に保存（env が揃っている時だけ。失敗しても生成結果は返す）
-    if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    const supabaseUrl = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    console.log("[Supabase] url present:", !!supabaseUrl, "key present:", !!supabaseKey);
+    if (supabaseUrl && supabaseKey) {
       try {
-        const db = createClient(
-          process.env.NEXT_PUBLIC_SUPABASE_URL,
-          process.env.SUPABASE_SERVICE_ROLE_KEY,
-        );
+        const db = createClient(supabaseUrl, supabaseKey);
         const { error: dbError } = await db.from("broadcasts").insert({
           kind: result.json.kind,
           title: result.json.title,
