@@ -28,10 +28,16 @@ export async function POST(req: NextRequest) {
     const result = await compose(userText);
 
     // Supabase に保存（env が揃っている時だけ。失敗しても生成結果は返す）
-    const supabaseUrl = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
+    // プロジェクトID or 完全URL のどちらで入力されても動くよう正規化
+    const rawUrl = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
+    const supabaseUrl = rawUrl.startsWith("http")
+      ? rawUrl.replace(/\/$/, "")
+      : rawUrl
+        ? `https://${rawUrl.replace(/\/$/, "")}`
+        : `https://zgptvigkdcndcmszjocz.supabase.co`;
     const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-    console.log("[Supabase] url present:", !!supabaseUrl, "key present:", !!supabaseKey);
-    if (supabaseUrl && supabaseKey) {
+    console.log("[Supabase] url:", supabaseUrl, "key present:", !!supabaseKey);
+    if (supabaseKey) {
       try {
         const db = createClient(supabaseUrl, supabaseKey);
         const { error: dbError } = await db.from("broadcasts").insert({
