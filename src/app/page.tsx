@@ -52,6 +52,7 @@ const SAMPLE_RESULT: ComposeResult = {
 export default function Home() {
   const [kind, setKind] = useState<BroadcastKind>("activity");
   const [rawText, setRawText] = useState("");
+  const [url, setUrl] = useState(""); // イベントページのURL（イベント告知向け）
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -103,6 +104,12 @@ export default function Home() {
   function handleGenerate() {
     if (!rawText.trim()) return;
     callApi({ rawText });
+  }
+
+  // 1') イベントURLから生成（サーバーがページを取得・抽出して生成）
+  function handleGenerateFromUrl() {
+    if (!url.trim()) return;
+    callApi({ url });
   }
 
   // 2) 不足項目に回答して再生成（回答を追記してメモごと再投入）
@@ -194,6 +201,7 @@ export default function Home() {
   function reset() {
     setResult(null);
     setRawText("");
+    setUrl("");
     setForm({
       title: "",
       start: "",
@@ -297,6 +305,35 @@ export default function Home() {
 
       {/* 入力エリア（メモ書き or フォーム） */}
       <section className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
+        {kind === "event" && (
+          <div className="mb-4 rounded-xl bg-teal-50 p-3 ring-1 ring-teal-100">
+            <label className="mb-1.5 block text-sm font-semibold text-slate-700">
+              🔗 イベントのURLから作る
+              <span className="ml-1 font-normal text-slate-400">
+                （connpass / Peatix など）
+              </span>
+            </label>
+            <div className="flex gap-2">
+              <input
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleGenerateFromUrl()}
+                placeholder="https://..."
+                className="flex-1 rounded-xl border border-slate-300 p-2.5 text-sm focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
+              />
+              <button
+                onClick={handleGenerateFromUrl}
+                disabled={loading || !url.trim()}
+                className="rounded-xl bg-brand px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:brightness-110 disabled:opacity-40"
+              >
+                {loading ? "取得中…" : "URLから作る"}
+              </button>
+            </div>
+            <p className="mt-1.5 text-xs text-slate-400">
+              ページを読み取って自動で下書きします。読めない時は下のメモ/フォームで。
+            </p>
+          </div>
+        )}
         {inputMode === "memo" ? (
           <>
             <label className="mb-2 block text-sm font-semibold text-slate-700">
