@@ -63,6 +63,11 @@ export default function Home() {
   const [refine, setRefine] = useState("");
   const [copied, setCopied] = useState<PlatformKey | null>(null);
   const [preview, setPreview] = useState(false); // 開発時に演出を眺めるためのプレビュー
+  // 直近の生成 payload（失敗時のリトライ用）と、生成中演出の ON/OFF（localStorage 永続）
+  const [lastPayload, setLastPayload] = useState<Record<string, unknown> | null>(null);
+  const [animEnabled, setAnimEnabled] = useState(true);
+  // 使う配信先SNS（チェックを外すと生成・表示から除外）。localStorage 永続。
+  const [enabledPF, setEnabledPF] = useState<PlatformKey[]>(["line", "teams", "discord"]);
 
   // 即時送信の確認モーダル
   const [postTarget, setPostTarget] = useState<{ platform: "discord" | "teams"; text: string } | null>(null);
@@ -105,13 +110,14 @@ export default function Home() {
   });
 
   async function callApi(payload: Record<string, unknown>) {
+    setLastPayload(payload); // 失敗時のリトライ用に保持
     setLoading(true);
     setError(null);
     try {
       const res = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ kind, today: todayISO(), ...payload }),
+        body: JSON.stringify({ kind, today: todayISO(), platforms: enabledPF, ...payload }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "生成に失敗しました");
@@ -123,6 +129,36 @@ export default function Home() {
     } finally {
       setLoading(false);
     }
+  }
+
+  // 直前の生成をやり直す（失敗時のリトライ）
+  function retry() {
+    if (lastPayload) callApi(lastPayload);
+  }
+
+  // 生成中演出の ON/OFF を切り替えて localStorage に保存
+  function setAnim(enabled: boolean) {
+    setAnimEnabled(enabled);
+    try {
+      localStorage.setItem("wacca-anim", enabled ? "1" : "0");
+    } catch {
+      // localStorage 不可環境は無視
+    }
+  }
+
+  // 使う配信先SNS のオン/オフ（最低1つは残す）。localStorage に保存
+  function togglePF(k: PlatformKey) {
+    setEnabledPF((prev) => {
+      const set = prev.includes(k) ? prev.filter((p) => p !== k) : [...prev, k];
+      const ordered = (Object.keys(PLATFORMS) as PlatformKey[]).filter((p) => set.includes(p));
+      if (ordered.length === 0) return prev; // 全部オフは不可
+      try {
+        localStorage.setItem("wacca-pf", JSON.stringify(ordered));
+      } catch {
+        // localStorage 不可環境は無視
+      }
+      return ordered;
+    });
   }
 
   // 1) ふんわりメモから生成
@@ -330,11 +366,25 @@ export default function Home() {
         const imgs = JSON.parse(savedImages);
         if (Array.isArray(imgs)) setUploadedImages(imgs);
       }
+      if (localStorage.getItem("wacca-anim") === "0") setAnimEnabled(false);
+      const savedPF = localStorage.getItem("wacca-pf");
+      if (savedPF) {
+        const arr = JSON.parse(savedPF);
+        const valid = (Object.keys(PLATFORMS) as PlatformKey[]).filter(
+          (p) => Array.isArray(arr) && arr.includes(p),
+        );
+        if (valid.length) setEnabledPF(valid);
+      }
     } catch {
       /* 壊れていても無視 */
     }
     hydrated.current = true;
   }, []);
+
+  // 選択中のタブが無効化されたら、有効な先頭タブへ寄せる
+  useEffect(() => {
+    if (!enabledPF.includes(tab)) setTab(enabledPF[0]);
+  }, [enabledPF, tab]);
   useEffect(() => {
     if (!hydrated.current) return;
     try {
@@ -414,6 +464,13 @@ export default function Home() {
           </p>
         </div>
         <div className="ml-auto flex gap-2">
+          <button
+            onClick={() => setAnim(!animEnabled)}
+            title={animEnabled ? "生成中の演出をオフにする" : "生成中の演出をオンにする"}
+            className="rounded-full px-3 py-1.5 text-xs font-medium text-slate-500 ring-1 ring-slate-200 transition hover:bg-white hover:text-slate-700"
+          >
+            {animEnabled ? "✨ 演出ON" : "✨ 演出OFF"}
+          </button>
           <Link
             href="/history"
             className="rounded-full px-3 py-1.5 text-xs font-medium text-slate-500 ring-1 ring-slate-200 transition hover:bg-white hover:text-slate-700"
@@ -486,6 +543,34 @@ export default function Home() {
         </div>
       </div>
 
+      {/* 使う配信先SNS（外すと生成・表示から除外） */}
+      <div className="mb-5">
+        <span className="mb-1.5 block text-xs font-semibold text-slate-500">
+          使うSNS
+          <span className="ml-1 font-normal text-slate-400">（外したSNSは生成・表示しません）</span>
+        </span>
+        <div className="flex flex-wrap gap-2">
+          {(Object.keys(PLATFORMS) as PlatformKey[]).map((k) => {
+            const on = enabledPF.includes(k);
+            return (
+              <button
+                key={k}
+                onClick={() => togglePF(k)}
+                style={on ? { backgroundColor: PLATFORMS[k].color } : undefined}
+                className={`rounded-full px-3.5 py-1.5 text-sm font-medium transition ${
+                  on
+                    ? "text-white shadow-sm"
+                    : "bg-white text-slate-400 ring-1 ring-slate-200 hover:ring-slate-300"
+                }`}
+              >
+                {PLATFORMS[k].emoji} {PLATFORMS[k].label}
+                {on ? "" : "（オフ）"}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       {/* 入力エリア（メモ書き or フォーム） */}
       <section className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
         {kind === "event" && (
@@ -544,7 +629,20 @@ export default function Home() {
               >
                 {loading ? "生成中…" : "✨ 下書きを作る"}
               </button>
-              {error && <span className="text-sm text-red-600">{error}</span>}
+              {error && (
+                <span className="flex items-center gap-2 text-sm text-red-600">
+                  {error}
+                  {lastPayload && (
+                    <button
+                      onClick={retry}
+                      disabled={loading}
+                      className="rounded-md bg-red-600 px-2.5 py-1 text-xs font-semibold text-white transition hover:brightness-110 disabled:opacity-40"
+                    >
+                      ↻ もう一度
+                    </button>
+                  )}
+                </span>
+              )}
             </div>
           </>
         ) : (
@@ -580,14 +678,27 @@ export default function Home() {
               >
                 {loading ? "生成中…" : "✨ 下書きを作る"}
               </button>
-              {error && <span className="text-sm text-red-600">{error}</span>}
+              {error && (
+                <span className="flex items-center gap-2 text-sm text-red-600">
+                  {error}
+                  {lastPayload && (
+                    <button
+                      onClick={retry}
+                      disabled={loading}
+                      className="rounded-md bg-red-600 px-2.5 py-1 text-xs font-semibold text-white transition hover:brightness-110 disabled:opacity-40"
+                    >
+                      ↻ もう一度
+                    </button>
+                  )}
+                </span>
+              )}
             </div>
           </>
         )}
       </section>
 
-      {/* 生成中の小ネタ演出 */}
-      {(loading || preview) && <GeneratingShow />}
+      {/* 生成中の小ネタ演出（演出オフ時は通常の生成中表示のみ。preview は開発用なので常に表示） */}
+      {((loading && animEnabled) || preview) && <GeneratingShow onDisable={() => setAnim(false)} />}
 
       {result && (
         <>
@@ -639,7 +750,7 @@ export default function Home() {
           {/* PF別プレビュー＋コピー */}
           <section className="mt-4 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
             <div className="mb-3 flex flex-wrap items-center gap-2">
-              {(Object.keys(PLATFORMS) as PlatformKey[]).map((k) => (
+              {enabledPF.map((k) => (
                 <button
                   key={k}
                   onClick={() => setTab(k)}
@@ -653,10 +764,19 @@ export default function Home() {
                   {PLATFORMS[k].emoji} {PLATFORMS[k].label}
                 </button>
               ))}
-              <span className="ml-auto text-xs text-slate-400">
+              <span
+                className={`ml-auto text-xs ${
+                  tab === "line" && (currentText.length < 300 || currentText.length > 500)
+                    ? "text-amber-600"
+                    : "text-slate-400"
+                }`}
+              >
                 {currentText.length}字
                 {tab === "line" && currentText.length > 500 && (
-                  <span className="ml-1 text-amber-600">（長め）</span>
+                  <span className="ml-1">（長め・分割推奨）</span>
+                )}
+                {tab === "line" && currentText.length < 300 && currentText.length > 0 && (
+                  <span className="ml-1">（短め）</span>
                 )}
               </span>
             </div>
@@ -1365,7 +1485,7 @@ const VISUALS = [BottleShow, ToiletPaperShow, TimerShow, EmojiShow];
 const SCENES = ["icon", "wave", "mosaic"] as const;
 type Scene = (typeof SCENES)[number];
 
-function GeneratingShow() {
+function GeneratingShow({ onDisable }: { onDisable?: () => void }) {
   const [tick, setTick] = useState(0);
   // 生成のたびに「シーン・演出ビジュアル・メッセージ開始位置・豆知識」をランダムに → 毎回ちょっと違って飽きない
   const [scene] = useState<Scene>(() => SCENES[Math.floor(Math.random() * SCENES.length)]);
@@ -1385,6 +1505,14 @@ function GeneratingShow() {
       className="fixed inset-0 z-50 flex flex-col items-center justify-center overflow-hidden bg-gradient-to-b from-white/90 to-indigo-50/90 backdrop-blur-md"
       style={{ animation: "yb-fade 0.3s ease" }}
     >
+      {onDisable && (
+        <button
+          onClick={onDisable}
+          className="absolute right-4 top-4 z-30 rounded-full bg-white/70 px-3 py-1 text-xs font-medium text-slate-500 ring-1 ring-slate-200 backdrop-blur transition hover:bg-white hover:text-slate-700"
+        >
+          演出を消す
+        </button>
+      )}
       {scene === "wave" && <WaveCanvas />}
       {scene === "mosaic" && <MosaicFilterDef />}
       {/* モザイクの四角い格子線（区切りが見える）→ 一度だけフェードアウト */}

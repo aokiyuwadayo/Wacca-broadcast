@@ -35,4 +35,18 @@ describe("buildUserText", () => {
     expect(out).toContain("activity");
     expect(out).not.toContain("weird");
   });
+
+  it("配信先を一部だけ指定 → 不要PFは空文字でよい指示が入る", () => {
+    const out = buildUserText({ kind: "activity", rawText: "x", platforms: ["line", "discord"] });
+    expect(out).toContain("生成する配信先");
+    expect(out).toContain("teams"); // オフのPFが明示される
+    expect(out).toContain("空文字");
+  });
+
+  it("全PF指定 or 省略 → 配信先の絞り込み指示は入らない", () => {
+    const all = buildUserText({ kind: "activity", rawText: "x", platforms: ["line", "teams", "discord"] });
+    const none = buildUserText({ kind: "activity", rawText: "x" });
+    expect(all).not.toContain("生成する配信先");
+    expect(none).not.toContain("生成する配信先");
+  });
 });

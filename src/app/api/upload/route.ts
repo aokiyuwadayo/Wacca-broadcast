@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { getServerDb } from "@/lib/supabase-server";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -7,16 +7,6 @@ export const maxDuration = 30;
 const BUCKET = "broadcast-images";
 const MAX_BYTES = 5 * 1024 * 1024; // 5MB
 const ALLOWED_EXT = ["jpg", "jpeg", "png", "gif", "webp"];
-
-function getDb() {
-  const rawUrl = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
-  const url = rawUrl.startsWith("http")
-    ? rawUrl.replace(/\/$/, "")
-    : rawUrl
-    ? `https://${rawUrl.replace(/\/$/, "")}`
-    : `https://zgptvigkdcndcmszjocz.supabase.co`;
-  return createClient(url, process.env.SUPABASE_SERVICE_ROLE_KEY ?? "");
-}
 
 export async function POST(req: NextRequest) {
   if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
@@ -36,7 +26,7 @@ export async function POST(req: NextRequest) {
   const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
   const buffer = await file.arrayBuffer();
 
-  const db = getDb();
+  const db = getServerDb();
   const { error } = await db.storage
     .from(BUCKET)
     .upload(fileName, buffer, { contentType: file.type, upsert: false });

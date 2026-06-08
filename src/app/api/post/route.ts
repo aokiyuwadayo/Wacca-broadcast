@@ -1,17 +1,7 @@
 import { NextRequest } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { getServerDb } from "@/lib/supabase-server";
 
 export const runtime = "nodejs";
-
-function getDb() {
-  const rawUrl = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
-  const url = rawUrl.startsWith("http")
-    ? rawUrl.replace(/\/$/, "")
-    : rawUrl
-      ? `https://${rawUrl.replace(/\/$/, "")}`
-      : `https://zgptvigkdcndcmszjocz.supabase.co`;
-  return createClient(url, process.env.SUPABASE_SERVICE_ROLE_KEY ?? "");
-}
 
 export async function POST(req: NextRequest) {
   const { platform, text } = await req.json();
@@ -19,7 +9,7 @@ export async function POST(req: NextRequest) {
     return Response.json({ error: "platform と text は必須です" }, { status: 400 });
   }
 
-  const { data: settings } = await getDb()
+  const { data: settings } = await getServerDb()
     .from("settings")
     .select("discord_webhook, teams_webhook")
     .limit(1)
