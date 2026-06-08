@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import type { BroadcastRow } from "@/lib/supabase";
-import { getSupabase } from "@/lib/supabase";
 import type { BroadcastJson, Platforms } from "@/lib/schema";
 
 type Row = BroadcastRow & { json: BroadcastJson; platforms: Platforms };
@@ -24,19 +23,11 @@ export default function HistoryPage() {
   const [copied, setCopied] = useState<string | null>(null);
 
   useEffect(() => {
-    const db = getSupabase();
-    if (!db) {
-      setLoading(false);
-      return;
-    }
-    db.from("broadcasts")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .limit(50)
-      .then(({ data }) => {
-        setRows((data ?? []) as Row[]);
-        setLoading(false);
-      });
+    fetch("/api/history")
+      .then((r) => r.json())
+      .then((data) => setRows((Array.isArray(data) ? data : []) as Row[]))
+      .catch(() => setRows([]))
+      .finally(() => setLoading(false));
   }, []);
 
   async function duplicate(row: Row) {
