@@ -1,14 +1,11 @@
 import { NextRequest } from "next/server";
+import { checkPublicUrl } from "@/lib/url-safety";
 
 // 接続先（Discord/Teams/Slack の Webhook）へ「テスト1通」を実際に送るエンドポイント。
 // 設計の鉄則「実際に1通届くまで接続済みにしない（silent fail 防止）」を満たすための土台。
 // 保存前の入力 URL を直接受け取って検証できるようにしている（DB保存と独立）。
 
 export const runtime = "nodejs";
-
-// SSRF 対策：内部・ループバック宛を弾く（fetch-url.ts と同じ方針）
-const PRIVATE_HOST =
-  /^(localhost|127\.|0\.0\.0\.0|10\.|192\.168\.|169\.254\.|172\.(1[6-9]|2\d|3[01])\.|\[?::1\]?)/i;
 
 const TEST_MESSAGE =
   "✅ Wacca Cast 接続テスト：このメッセージが届いていれば設定はOKです。";
@@ -19,18 +16,12 @@ export async function POST(req: NextRequest) {
     return Response.json({ error: "platform と url は必須です" }, { status: 400 });
   }
 
-  let u: URL;
-  try {
-    u = new URL(String(url));
-  } catch {
-    return Response.json({ error: "URL の形式が正しくありません" }, { status: 400 });
+  // Webhook は https 必須＋内部ホスト遮断（SSRF対策）
+  const check = checkPublicUrl(url, { requireHttps: true });
+  if (!check.ok) {
+    return Response.json({ error: check.error }, { status: 400 });
   }
-  if (u.protocol !== "https:") {
-    return Response.json({ error: "https の Webhook URL を指定してください" }, { status: 400 });
-  }
-  if (PRIVATE_HOST.test(u.hostname)) {
-    return Response.json({ error: "この URL には送信できません" }, { status: 400 });
-  }
+  const u = check.url;
 
   // 各PFの Webhook が期待する本文形式（cron/daily・post と揃える）
   const body =

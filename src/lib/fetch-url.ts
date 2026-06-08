@@ -1,8 +1,7 @@
 // イベントページの URL からテキスト情報を取得・抽出する（サーバー側）。
-// HTTP 取得のみ＝鍵も課金も不要。SSRF 対策として http(s) 以外と内部アドレスを弾く。
+// HTTP 取得のみ＝鍵も課金も不要。SSRF 対策（http(s)以外と内部アドレスの遮断）は url-safety に集約。
 
-const PRIVATE_HOST =
-  /^(localhost|127\.|0\.0\.0\.0|10\.|192\.168\.|169\.254\.|172\.(1[6-9]|2\d|3[01])\.|\[?::1\]?)/i;
+import { checkPublicUrl } from "./url-safety";
 
 function pick(html: string, re: RegExp): string {
   const m = html.match(re);
@@ -10,18 +9,9 @@ function pick(html: string, re: RegExp): string {
 }
 
 export async function fetchEventSource(url: string): Promise<string> {
-  let u: URL;
-  try {
-    u = new URL(url);
-  } catch {
-    throw new Error("URLの形式が正しくありません");
-  }
-  if (u.protocol !== "http:" && u.protocol !== "https:") {
-    throw new Error("http(s) のURLのみ対応しています");
-  }
-  if (PRIVATE_HOST.test(u.hostname)) {
-    throw new Error("このURLは取得できません");
-  }
+  const check = checkPublicUrl(url);
+  if (!check.ok) throw new Error(check.error);
+  const u = check.url;
 
   let res: Response;
   try {
