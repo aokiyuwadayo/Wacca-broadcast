@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#3b82f6"/>
+      <stop offset="55%" stop-color="#0d9488"/>
+      <stop offset="100%" stop-color="#facc15"/>
+    </linearGradient>
+  </defs>
+  <!-- maskable 対応: 背景は全面塗り。ロゴは中央 ~60% に収め safe-zone を確保 -->
+  <rect width="512" height="512" fill="url(#g)"/>
+  <g fill="none" stroke="#ffffff" stroke-width="22">
+    <circle cx="256" cy="256" r="44"/>
+    <circle cx="256" cy="256" r="104" opacity="0.7"/>
+    <circle cx="256" cy="256" r="160" opacity="0.4"/>
+  </g>
+</svg>

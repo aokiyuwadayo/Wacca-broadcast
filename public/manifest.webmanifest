@@ -1,0 +1,20 @@
+{
+  "name": "Wacca Cast",
+  "short_name": "Wacca Cast",
+  "description": "ふんわりメモから各SNS向けの告知文を生成・配信する、サークルの告知ツール",
+  "lang": "ja",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#ffffff",
+  "theme_color": "#0d9488",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
