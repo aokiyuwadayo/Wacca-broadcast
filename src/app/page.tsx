@@ -63,6 +63,9 @@ export default function Home() {
   const [refine, setRefine] = useState("");
   const [copied, setCopied] = useState<PlatformKey | null>(null);
   const [preview, setPreview] = useState(false); // 開発時に演出を眺めるためのプレビュー
+  // 直近の生成 payload（失敗時のリトライ用）と、生成中演出の ON/OFF（localStorage 永続）
+  const [lastPayload, setLastPayload] = useState<Record<string, unknown> | null>(null);
+  const [animEnabled, setAnimEnabled] = useState(true);
 
   // 即時送信の確認モーダル
   const [postTarget, setPostTarget] = useState<{ platform: "discord" | "teams"; text: string } | null>(null);
@@ -105,6 +108,7 @@ export default function Home() {
   });
 
   async function callApi(payload: Record<string, unknown>) {
+    setLastPayload(payload); // 失敗時のリトライ用に保持
     setLoading(true);
     setError(null);
     try {
@@ -122,6 +126,21 @@ export default function Home() {
       setError(e instanceof Error ? e.message : "エラーが発生しました");
     } finally {
       setLoading(false);
+    }
+  }
+
+  // 直前の生成をやり直す（失敗時のリトライ）
+  function retry() {
+    if (lastPayload) callApi(lastPayload);
+  }
+
+  // 生成中演出の ON/OFF を切り替えて localStorage に保存
+  function setAnim(enabled: boolean) {
+    setAnimEnabled(enabled);
+    try {
+      localStorage.setItem("wacca-anim", enabled ? "1" : "0");
+    } catch {
+      // localStorage 不可環境は無視
     }
   }
 
@@ -330,6 +349,7 @@ export default function Home() {
         const imgs = JSON.parse(savedImages);
         if (Array.isArray(imgs)) setUploadedImages(imgs);
       }
+      if (localStorage.getItem("wacca-anim") === "0") setAnimEnabled(false);
     } catch {
       /* 壊れていても無視 */
     }
@@ -414,6 +434,13 @@ export default function Home() {
           </p>
         </div>
         <div className="ml-auto flex gap-2">
+          <button
+            onClick={() => setAnim(!animEnabled)}
+            title={animEnabled ? "生成中の演出をオフにする" : "生成中の演出をオンにする"}
+            className="rounded-full px-3 py-1.5 text-xs font-medium text-slate-500 ring-1 ring-slate-200 transition hover:bg-white hover:text-slate-700"
+          >
+            {animEnabled ? "✨ 演出ON" : "✨ 演出OFF"}
+          </button>
           <Link
             href="/history"
             className="rounded-full px-3 py-1.5 text-xs font-medium text-slate-500 ring-1 ring-slate-200 transition hover:bg-white hover:text-slate-700"
@@ -544,7 +571,20 @@ export default function Home() {
               >
                 {loading ? "生成中…" : "✨ 下書きを作る"}
               </button>
-              {error && <span className="text-sm text-red-600">{error}</span>}
+              {error && (
+                <span className="flex items-center gap-2 text-sm text-red-600">
+                  {error}
+                  {lastPayload && (
+                    <button
+                      onClick={retry}
+                      disabled={loading}
+                      className="rounded-md bg-red-600 px-2.5 py-1 text-xs font-semibold text-white transition hover:brightness-110 disabled:opacity-40"
+                    >
+                      ↻ もう一度
+                    </button>
+                  )}
+                </span>
+              )}
             </div>
           </>
         ) : (
@@ -580,14 +620,27 @@ export default function Home() {
               >
                 {loading ? "生成中…" : "✨ 下書きを作る"}
               </button>
-              {error && <span className="text-sm text-red-600">{error}</span>}
+              {error && (
+                <span className="flex items-center gap-2 text-sm text-red-600">
+                  {error}
+                  {lastPayload && (
+                    <button
+                      onClick={retry}
+                      disabled={loading}
+                      className="rounded-md bg-red-600 px-2.5 py-1 text-xs font-semibold text-white transition hover:brightness-110 disabled:opacity-40"
+                    >
+                      ↻ もう一度
+                    </button>
+                  )}
+                </span>
+              )}
             </div>
           </>
         )}
       </section>
 
-      {/* 生成中の小ネタ演出 */}
-      {(loading || preview) && <GeneratingShow />}
+      {/* 生成中の小ネタ演出（演出オフ時は通常の生成中表示のみ。preview は開発用なので常に表示） */}
+      {((loading && animEnabled) || preview) && <GeneratingShow onDisable={() => setAnim(false)} />}
 
       {result && (
         <>
@@ -653,10 +706,19 @@ export default function Home() {
                   {PLATFORMS[k].emoji} {PLATFORMS[k].label}
                 </button>
               ))}
-              <span className="ml-auto text-xs text-slate-400">
+              <span
+                className={`ml-auto text-xs ${
+                  tab === "line" && (currentText.length < 300 || currentText.length > 500)
+                    ? "text-amber-600"
+                    : "text-slate-400"
+                }`}
+              >
                 {currentText.length}字
                 {tab === "line" && currentText.length > 500 && (
-                  <span className="ml-1 text-amber-600">（長め）</span>
+                  <span className="ml-1">（長め・分割推奨）</span>
+                )}
+                {tab === "line" && currentText.length < 300 && currentText.length > 0 && (
+                  <span className="ml-1">（短め）</span>
                 )}
               </span>
             </div>
@@ -1365,7 +1427,7 @@ const VISUALS = [BottleShow, ToiletPaperShow, TimerShow, EmojiShow];
 const SCENES = ["icon", "wave", "mosaic"] as const;
 type Scene = (typeof SCENES)[number];
 
-function GeneratingShow() {
+function GeneratingShow({ onDisable }: { onDisable?: () => void }) {
   const [tick, setTick] = useState(0);
   // 生成のたびに「シーン・演出ビジュアル・メッセージ開始位置・豆知識」をランダムに → 毎回ちょっと違って飽きない
   const [scene] = useState<Scene>(() => SCENES[Math.floor(Math.random() * SCENES.length)]);
@@ -1385,6 +1447,14 @@ function GeneratingShow() {
       className="fixed inset-0 z-50 flex flex-col items-center justify-center overflow-hidden bg-gradient-to-b from-white/90 to-indigo-50/90 backdrop-blur-md"
       style={{ animation: "yb-fade 0.3s ease" }}
     >
+      {onDisable && (
+        <button
+          onClick={onDisable}
+          className="absolute right-4 top-4 z-30 rounded-full bg-white/70 px-3 py-1 text-xs font-medium text-slate-500 ring-1 ring-slate-200 backdrop-blur transition hover:bg-white hover:text-slate-700"
+        >
+          演出を消す
+        </button>
+      )}
       {scene === "wave" && <WaveCanvas />}
       {scene === "mosaic" && <MosaicFilterDef />}
       {/* モザイクの四角い格子線（区切りが見える）→ 一度だけフェードアウト */}
