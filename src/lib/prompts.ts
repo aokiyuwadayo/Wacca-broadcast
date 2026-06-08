@@ -58,6 +58,7 @@ interface ComposeBody {
   json?: unknown;
   instruction?: string;
   today?: string;
+  platforms?: string[]; // 生成する配信先（省略時は全PF）
   profile?: {
     circle_name?: string;
     leader_name?: string;
@@ -71,6 +72,18 @@ interface ComposeBody {
 export function buildUserText(body: ComposeBody): string {
   const kind = body.kind === "event" ? "event" : "activity";
   const today = body.today ? `\n# 今日の日付（曖昧な日付の解決に使う）\n${body.today}\n` : "";
+
+  // 使う配信先の指定（一部だけ使う場合、不要なPFは空文字でよい＝無駄な生成を省く）
+  const ALL_PF = ["line", "teams", "discord"];
+  const pfList =
+    Array.isArray(body.platforms) && body.platforms.length > 0
+      ? ALL_PF.filter((p) => body.platforms!.includes(p))
+      : ALL_PF;
+  const offPF = ALL_PF.filter((p) => !pfList.includes(p));
+  const pfNote =
+    offPF.length > 0
+      ? `\n# 生成する配信先\n${pfList.join(" / ")} のみ作成する。${offPF.join("・")} は使わないので、platforms の該当キーは空文字 "" にしてよい（無理に作らない）。\n`
+      : "";
 
   const p = body.profile;
   const profile =
@@ -94,7 +107,7 @@ export function buildUserText(body: ComposeBody): string {
       : "";
 
   if (body.instruction && body.json) {
-    return `種別: ${kind}${today}${profile}${fewShot}
+    return `種別: ${kind}${today}${pfNote}${profile}${fewShot}
 # 現在の中間JSON
 ${JSON.stringify(body.json, null, 2)}
 
@@ -105,14 +118,14 @@ ${body.instruction}
   }
 
   if (body.json) {
-    return `種別: ${kind}${today}${profile}${fewShot}
+    return `種別: ${kind}${today}${pfNote}${profile}${fewShot}
 # 確定済みの中間JSON（内容は尊重し、勝手に変えない）
 ${JSON.stringify(body.json, null, 2)}
 
 このJSONから全PF文面を生成してください（missing は再評価して返す）。`;
   }
 
-  return `種別: ${kind}${today}${profile}${fewShot}
+  return `種別: ${kind}${today}${pfNote}${profile}${fewShot}
 # ふんわりメモ
 ${body.rawText ?? ""}
 

@@ -66,6 +66,8 @@ export default function Home() {
   // 直近の生成 payload（失敗時のリトライ用）と、生成中演出の ON/OFF（localStorage 永続）
   const [lastPayload, setLastPayload] = useState<Record<string, unknown> | null>(null);
   const [animEnabled, setAnimEnabled] = useState(true);
+  // 使う配信先SNS（チェックを外すと生成・表示から除外）。localStorage 永続。
+  const [enabledPF, setEnabledPF] = useState<PlatformKey[]>(["line", "teams", "discord"]);
 
   // 即時送信の確認モーダル
   const [postTarget, setPostTarget] = useState<{ platform: "discord" | "teams"; text: string } | null>(null);
@@ -115,7 +117,7 @@ export default function Home() {
       const res = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ kind, today: todayISO(), ...payload }),
+        body: JSON.stringify({ kind, today: todayISO(), platforms: enabledPF, ...payload }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "生成に失敗しました");
@@ -142,6 +144,21 @@ export default function Home() {
     } catch {
       // localStorage 不可環境は無視
     }
+  }
+
+  // 使う配信先SNS のオン/オフ（最低1つは残す）。localStorage に保存
+  function togglePF(k: PlatformKey) {
+    setEnabledPF((prev) => {
+      const set = prev.includes(k) ? prev.filter((p) => p !== k) : [...prev, k];
+      const ordered = (Object.keys(PLATFORMS) as PlatformKey[]).filter((p) => set.includes(p));
+      if (ordered.length === 0) return prev; // 全部オフは不可
+      try {
+        localStorage.setItem("wacca-pf", JSON.stringify(ordered));
+      } catch {
+        // localStorage 不可環境は無視
+      }
+      return ordered;
+    });
   }
 
   // 1) ふんわりメモから生成
@@ -350,11 +367,24 @@ export default function Home() {
         if (Array.isArray(imgs)) setUploadedImages(imgs);
       }
       if (localStorage.getItem("wacca-anim") === "0") setAnimEnabled(false);
+      const savedPF = localStorage.getItem("wacca-pf");
+      if (savedPF) {
+        const arr = JSON.parse(savedPF);
+        const valid = (Object.keys(PLATFORMS) as PlatformKey[]).filter(
+          (p) => Array.isArray(arr) && arr.includes(p),
+        );
+        if (valid.length) setEnabledPF(valid);
+      }
     } catch {
       /* 壊れていても無視 */
     }
     hydrated.current = true;
   }, []);
+
+  // 選択中のタブが無効化されたら、有効な先頭タブへ寄せる
+  useEffect(() => {
+    if (!enabledPF.includes(tab)) setTab(enabledPF[0]);
+  }, [enabledPF, tab]);
   useEffect(() => {
     if (!hydrated.current) return;
     try {
@@ -510,6 +540,34 @@ export default function Home() {
               </button>
             ))}
           </div>
+        </div>
+      </div>
+
+      {/* 使う配信先SNS（外すと生成・表示から除外） */}
+      <div className="mb-5">
+        <span className="mb-1.5 block text-xs font-semibold text-slate-500">
+          使うSNS
+          <span className="ml-1 font-normal text-slate-400">（外したSNSは生成・表示しません）</span>
+        </span>
+        <div className="flex flex-wrap gap-2">
+          {(Object.keys(PLATFORMS) as PlatformKey[]).map((k) => {
+            const on = enabledPF.includes(k);
+            return (
+              <button
+                key={k}
+                onClick={() => togglePF(k)}
+                style={on ? { backgroundColor: PLATFORMS[k].color } : undefined}
+                className={`rounded-full px-3.5 py-1.5 text-sm font-medium transition ${
+                  on
+                    ? "text-white shadow-sm"
+                    : "bg-white text-slate-400 ring-1 ring-slate-200 hover:ring-slate-300"
+                }`}
+              >
+                {PLATFORMS[k].emoji} {PLATFORMS[k].label}
+                {on ? "" : "（オフ）"}
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -692,7 +750,7 @@ export default function Home() {
           {/* PF別プレビュー＋コピー */}
           <section className="mt-4 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
             <div className="mb-3 flex flex-wrap items-center gap-2">
-              {(Object.keys(PLATFORMS) as PlatformKey[]).map((k) => (
+              {enabledPF.map((k) => (
                 <button
                   key={k}
                   onClick={() => setTab(k)}
