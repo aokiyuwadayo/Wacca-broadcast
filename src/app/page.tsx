@@ -9,7 +9,7 @@ import type {
   MissingField,
   Platforms,
 } from "@/lib/schema";
-import { splitList } from "@/lib/util";
+import { buildJsonFromForm, slideToText } from "@/lib/util";
 
 type PlatformKey = keyof Platforms;
 const PLATFORMS: Record<PlatformKey, { label: string; emoji: string; color: string }> = {
@@ -190,24 +190,7 @@ export default function Home() {
   // 3') フォーム入力モードから生成（フォームの項目を中間JSONに組み立てて投入）
   function handleGenerateFromForm() {
     if (!form.title.trim()) return;
-    const json: BroadcastJson = {
-      kind,
-      title: form.title,
-      datetime: { start: form.start, end: null },
-      location: { name: form.location, access: "", online_url: "" },
-      summary: form.summary,
-      body: splitList(form.body),
-      bring: splitList(form.bring),
-      rsvp: null,
-      fee: form.fee || null,
-      guests: splitList(form.guests),
-      cta: form.cta || null,
-      hook: form.hook,
-      note: form.note,
-      links: [],
-      images: [],
-    };
-    callApi({ json });
+    callApi({ json: buildJsonFromForm(kind, form) });
   }
 
   // 4) AIに相談して修正
@@ -260,8 +243,7 @@ export default function Home() {
   }
 
   function copySlide(idx: number, slide: { title: string; bullets: string[] }) {
-    const text = `${slide.title}\n${slide.bullets.map((b) => `・${b}`).join("\n")}`;
-    navigator.clipboard.writeText(text);
+    navigator.clipboard.writeText(slideToText(slide));
     setCopiedSlide(idx);
     setTimeout(() => setCopiedSlide(null), 1500);
   }
@@ -444,7 +426,7 @@ export default function Home() {
   return (
     <main className="mx-auto max-w-2xl px-4 py-8">
       {/* ヘッダー */}
-      <header className="mb-7 flex items-center gap-3">
+      <header className="mb-7 flex flex-wrap items-center gap-3">
         <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500 via-brand to-brand-accent shadow-sm">
           <svg viewBox="0 0 24 24" fill="none" stroke="white" className="h-7 w-7">
             <circle cx="12" cy="12" r="2.5" strokeWidth="2" />
