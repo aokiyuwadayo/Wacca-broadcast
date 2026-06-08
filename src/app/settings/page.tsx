@@ -44,6 +44,9 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  // 接続テスト：送信中のPFと、PFごとの結果（届くまで「接続済み」にしない＝silent fail防止）
+  const [testing, setTesting] = useState<string | null>(null);
+  const [testResult, setTestResult] = useState<Record<string, { ok: boolean; msg: string }>>({});
 
   useEffect(() => {
     Promise.all([
@@ -105,6 +108,34 @@ export default function SettingsPage() {
 
   const set = (k: keyof Settings) => (v: string) => setForm((f) => ({ ...f, [k]: v }));
 
+  // 入力中の Webhook URL に実際にテスト1通を送る（保存と独立）
+  async function testWebhook(platform: "discord" | "teams" | "slack", url: string) {
+    if (!url.trim()) {
+      setTestResult((r) => ({ ...r, [platform]: { ok: false, msg: "URL を入力してください" } }));
+      return;
+    }
+    setTesting(platform);
+    setTestResult((r) => ({ ...r, [platform]: { ok: false, msg: "送信中…" } }));
+    try {
+      const res = await fetch("/api/test-webhook", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ platform, url }),
+      });
+      const data = await res.json();
+      setTestResult((r) => ({
+        ...r,
+        [platform]: res.ok
+          ? { ok: true, msg: "✅ 届きました（接続OK）。実際の通知を確認してください" }
+          : { ok: false, msg: `❌ ${data.error ?? "失敗しました"}` },
+      }));
+    } catch {
+      setTestResult((r) => ({ ...r, [platform]: { ok: false, msg: "❌ 通信に失敗しました" } }));
+    } finally {
+      setTesting(null);
+    }
+  }
+
   return (
     <main className="mx-auto max-w-2xl px-4 py-8">
       <header className="mb-6 flex items-center gap-3">
@@ -143,20 +174,40 @@ export default function SettingsPage() {
             <h2 className="mb-4 text-sm font-semibold text-slate-700">自動投稿の接続先</h2>
             <p className="mb-3 text-xs text-slate-400">
               設定すると生成後に「送信」ボタンが出ます。送信前に必ず確認ダイアログが出ます。
+              <br />
+              入力したら「テスト送信」で実際に1通届くか確認を（届かない設定で“接続済み”と思い込む事故を防ぎます）。
             </p>
-            <div className="space-y-3">
-              <Field
-                label="Discord Webhook URL"
-                placeholder="https://discord.com/api/webhooks/..."
-                value={form.discord_webhook}
-                onChange={set("discord_webhook")}
-              />
-              <Field
-                label="Slack Webhook URL（リマインド通知用）"
-                placeholder="https://hooks.slack.com/services/..."
-                value={form.slack_webhook}
-                onChange={set("slack_webhook")}
-              />
+            <div className="space-y-4">
+              <div>
+                <Field
+                  label="Discord Webhook URL"
+                  placeholder="https://discord.com/api/webhooks/..."
+                  value={form.discord_webhook}
+                  onChange={set("discord_webhook")}
+                />
+                <TestRow
+                  platform="discord"
+                  url={form.discord_webhook}
+                  testing={testing}
+                  result={testResult.discord}
+                  onTest={testWebhook}
+                />
+              </div>
+              <div>
+                <Field
+                  label="Slack Webhook URL（リマインド通知用）"
+                  placeholder="https://hooks.slack.com/services/..."
+                  value={form.slack_webhook}
+                  onChange={set("slack_webhook")}
+                />
+                <TestRow
+                  platform="slack"
+                  url={form.slack_webhook}
+                  testing={testing}
+                  result={testResult.slack}
+                  onTest={testWebhook}
+                />
+              </div>
               <div>
                 <label className="block text-xs font-medium text-slate-500">
                   Teams Workflow URL
@@ -169,6 +220,13 @@ export default function SettingsPage() {
                   onChange={(e) => set("teams_webhook")(e.target.value)}
                   placeholder="https://prod-xx.westus.logic.azure.com/..."
                   className="mt-1 w-full rounded-xl border border-slate-300 p-2.5 text-sm focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
+                />
+                <TestRow
+                  platform="teams"
+                  url={form.teams_webhook}
+                  testing={testing}
+                  result={testResult.teams}
+                  onTest={testWebhook}
                 />
               </div>
             </div>
@@ -317,6 +375,39 @@ export default function SettingsPage() {
         </div>
       )}
     </main>
+  );
+}
+
+function TestRow({
+  platform,
+  url,
+  testing,
+  result,
+  onTest,
+}: {
+  platform: "discord" | "teams" | "slack";
+  url: string;
+  testing: string | null;
+  result?: { ok: boolean; msg: string };
+  onTest: (platform: "discord" | "teams" | "slack", url: string) => void;
+}) {
+  const busy = testing === platform;
+  return (
+    <div className="mt-1.5 flex flex-wrap items-center gap-2">
+      <button
+        type="button"
+        onClick={() => onTest(platform, url)}
+        disabled={busy || !url.trim()}
+        className="rounded-lg bg-slate-700 px-3 py-1 text-xs font-semibold text-white transition hover:brightness-110 disabled:opacity-40"
+      >
+        {busy ? "送信中…" : "テスト送信"}
+      </button>
+      {result && (
+        <span className={`text-xs ${result.ok ? "text-emerald-600" : "text-red-600"}`}>
+          {result.msg}
+        </span>
+      )}
+    </div>
   );
 }
 
