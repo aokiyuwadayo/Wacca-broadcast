@@ -118,7 +118,7 @@ export async function GET(req: Request) {
     if (settings?.slack_webhook) {
       await sendSlack(
         settings.slack_webhook,
-        `📣 *${dateLabel} ${sched.time_str}〜 の活動告知、まだですか？*\n\nAIが下書きを作りました👇\n\`\`\`\n${draft}\n\`\`\`\n\nWacca Cast で仕上げて投稿してね → ${process.env.NEXT_PUBLIC_APP_URL ?? "https://yuwa-broadcast.vercel.app"}`,
+        `📣 *${dateLabel} ${sched.time_str}〜 の活動告知、まだですか？*\n\nAIが下書きを作りました👇\n\`\`\`\n${draft}\n\`\`\`\n\nWacca Cast で仕上げて投稿してね → ${process.env.NEXT_PUBLIC_APP_URL ?? "https://wacca-broadcast.vercel.app"}`,
       );
       results.push(`定期リマインド: ${dateLabel}`);
     }
