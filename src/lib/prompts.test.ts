@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildUserText } from "./prompts";
+import { SYSTEM, buildUserText } from "./prompts";
 
 describe("buildUserText", () => {
   it("rawText だけ → メモから組み立てるモード", () => {
@@ -48,5 +48,21 @@ describe("buildUserText", () => {
     const none = buildUserText({ kind: "activity", rawText: "x" });
     expect(all).not.toContain("生成する配信先");
     expect(none).not.toContain("生成する配信先");
+  });
+});
+
+describe("SYSTEM", () => {
+  it("相対日付は今日の日付を基準に具体化し、解釈を assumptions に残すよう指示する", () => {
+    expect(SYSTEM).toContain("与えられた『今日の日付』を基準に具体的な日付へ必ず解決する");
+    expect(SYSTEM).toContain("assumptions");
+    expect(SYSTEM).toContain("(日付) 来週木曜");
+    expect(SYSTEM).toContain("基準日が無く解決できない曖昧表現");
+  });
+
+  it("LINE 文面は出力前に文字数を自己点検するよう指示する", () => {
+    expect(SYSTEM).toContain("出力前に文字数を自己点検する");
+    expect(SYSTEM).toContain("500字を超えたら");
+    expect(SYSTEM).toContain("200字を下回る");
+    expect(SYSTEM).toContain("改行・絵文字も字数に含めて数える");
   });
 });
