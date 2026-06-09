@@ -1,4 +1,4 @@
-# YUWA Broadcast — プロジェクトガイド（Claude Code 用）
+# Wacca Cast — プロジェクトガイド（Claude Code 用）
 
 > このファイルは、**どのPCからでも** このリポジトリをクローンした Claude Code セッションが、
 > 過去の文脈なしに「今どこにいて・何を・どう続けるか」を掴めるようにするためのもの。

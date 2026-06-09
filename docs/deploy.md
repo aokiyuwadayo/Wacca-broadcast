@@ -12,7 +12,7 @@
 ## 手順
 
 1. **Vercel にログイン**（https://vercel.com）— GitHub アカウントでサインイン。
-2. **「Add New… → Project」** → `aokiyuwadayo/yuwa-broadcast` を Import。
+2. **「Add New… → Project」** → `aokiyuwadayo/Wacca-broadcast` を Import。
 3. フレームワークは **Next.js** が自動検出される。設定はそのままでよい。
 4. **Environment Variables** に以下を登録：
    | Key | Value | 必須 |
@@ -20,7 +20,7 @@
    | `ANTHROPIC_API_KEY` | 個人の `sk-ant-...` | ✅ |
    | `ANTHROPIC_MODEL` | `claude-sonnet-4-6`（任意・既定でも可） | – |
    | `SITE_PASSWORD` | 合言葉（運営で共有する任意の文字列） | ✅ 強く推奨 |
-5. **Deploy** を押す → 数十秒で `https://yuwa-broadcast-xxxx.vercel.app` が発行される。
+5. **Deploy** を押す → 数十秒で `https://wacca-broadcast-xxxx.vercel.app` が発行される。
 6. その URL を開く → **Basic 認証のダイアログ**が出る。ユーザー名は何でもよく、パスワードに `SITE_PASSWORD` の値を入れると入れる。
 7. スマホはその URL を開いて「ホーム画面に追加」すればアプリのように使える（PWA 的）。
 
