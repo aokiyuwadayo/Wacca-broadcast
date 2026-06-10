@@ -45,6 +45,7 @@ export default function SettingsPage() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   // 接続テスト：送信中のPFと、PFごとの結果（届くまで「接続済み」にしない＝silent fail防止）
   const [testing, setTesting] = useState<string | null>(null);
   const [testResult, setTestResult] = useState<Record<string, { ok: boolean; msg: string }>>({});
@@ -107,16 +108,25 @@ export default function SettingsPage() {
     setSchedules((prev) => prev.filter((_, i) => i !== idx));
   }
 
+  // 「保存しました」は API が成功を返したときだけ出す（silent fail 防止）
   async function save() {
     setSaving(true);
-    await fetch("/api/settings", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
-    });
-    setSaving(false);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+    setSaveError(null);
+    try {
+      const res = await fetch("/api/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error ?? "設定を保存できませんでした");
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch (error) {
+      setSaveError(error instanceof Error ? error.message : "設定の保存に失敗しました");
+    } finally {
+      setSaving(false);
+    }
   }
 
   const set = (k: keyof Settings) => (v: string) => setForm((f) => ({ ...f, [k]: v }));
@@ -390,6 +400,11 @@ export default function SettingsPage() {
           >
             {saved ? "✅ 保存しました" : saving ? "保存中…" : "💾 保存する"}
           </button>
+          {saveError && (
+            <div className="rounded-2xl bg-red-50 p-4 text-sm text-red-700 ring-1 ring-red-200">
+              {saveError}
+            </div>
+          )}
         </div>
       )}
     </main>
