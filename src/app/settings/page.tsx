@@ -40,6 +40,8 @@ const EMPTY: Settings = {
 
 const DAY_NAMES = ["日", "月", "火", "水", "木", "金", "土"];
 
+type Member = { id: string; user_id: string; role: "owner" | "admin"; email: string };
+
 export default function SettingsPage() {
   const [form, setForm] = useState<Settings>(EMPTY);
   const [schedules, setSchedules] = useState<RegularSchedule[]>([]);
@@ -51,6 +53,13 @@ export default function SettingsPage() {
   // 接続テスト：送信中のPFと、PFごとの結果（届くまで「接続済み」にしない＝silent fail防止）
   const [testing, setTesting] = useState<string | null>(null);
   const [testResult, setTestResult] = useState<Record<string, { ok: boolean; msg: string }>>({});
+  // メンバー管理（Issue #8 PR-4）。null = 未ログイン等でセクション非表示
+  const [members, setMembers] = useState<Member[] | null>(null);
+  const [myRole, setMyRole] = useState<"owner" | "admin" | null>(null);
+  const [myUserId, setMyUserId] = useState<string | null>(null);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [memberMsg, setMemberMsg] = useState<string | null>(null);
+  const [memberBusy, setMemberBusy] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -71,10 +80,94 @@ export default function SettingsPage() {
       } finally {
         setLoading(false);
       }
+
+      // メンバー一覧はログイン中のみ取得できる（401 = セクション非表示の合図なので無視）
+      try {
+        const res = await fetch("/api/members");
+        if (res.ok) {
+          const data = await res.json();
+          setMembers(data.members ?? []);
+          setMyRole(data.me?.role ?? null);
+          setMyUserId(data.me?.user_id ?? null);
+        }
+      } catch {
+        // 非表示のまま
+      }
     }
 
     load();
   }, []);
+
+  async function reloadMembers() {
+    const res = await fetch("/api/members");
+    if (res.ok) {
+      const data = await res.json();
+      setMembers(data.members ?? []);
+      setMyRole(data.me?.role ?? null);
+    }
+  }
+
+  async function inviteMember() {
+    setMemberBusy(true);
+    setMemberMsg(null);
+    try {
+      const res = await fetch("/api/members", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: inviteEmail }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "招待に失敗しました");
+      setInviteEmail("");
+      setMemberMsg("✅ 招待しました（相手に招待メールが届きます）");
+      await reloadMembers();
+    } catch (error) {
+      setMemberMsg(`❌ ${error instanceof Error ? error.message : "招待に失敗しました"}`);
+    } finally {
+      setMemberBusy(false);
+    }
+  }
+
+  async function removeMember(m: Member) {
+    if (!confirm(`${m.email} をメンバーから削除しますか？`)) return;
+    setMemberBusy(true);
+    setMemberMsg(null);
+    try {
+      const res = await fetch("/api/members", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: m.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "削除に失敗しました");
+      await reloadMembers();
+    } catch (error) {
+      setMemberMsg(`❌ ${error instanceof Error ? error.message : "削除に失敗しました"}`);
+    } finally {
+      setMemberBusy(false);
+    }
+  }
+
+  async function transferOwner(m: Member) {
+    if (!confirm(`owner（引き継ぎ先）を ${m.email} に移譲しますか？\nあなたは admin になります。`)) return;
+    setMemberBusy(true);
+    setMemberMsg(null);
+    try {
+      const res = await fetch("/api/members/transfer", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user_id: m.user_id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "移譲に失敗しました");
+      setMemberMsg(`✅ owner を ${m.email} に移譲しました`);
+      await reloadMembers();
+    } catch (error) {
+      setMemberMsg(`❌ ${error instanceof Error ? error.message : "移譲に失敗しました"}`);
+    } finally {
+      setMemberBusy(false);
+    }
+  }
 
   async function addSchedule() {
     const res = await fetch("/api/regular-schedules", {
@@ -412,6 +505,71 @@ export default function SettingsPage() {
               ))}
             </div>
           </section>
+
+          {members !== null && (
+            <section className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
+              <h2 className="mb-2 text-sm font-semibold text-slate-700">👥 メンバー</h2>
+              <p className="mb-3 text-xs text-slate-400">
+                このサークルを管理できる人。owner は招待・削除と、代替わり時の owner 移譲ができます。
+              </p>
+              <div className="space-y-2">
+                {members.map((m) => (
+                  <div
+                    key={m.id}
+                    className="flex items-center justify-between rounded-xl bg-slate-50 p-3 ring-1 ring-slate-200"
+                  >
+                    <div className="text-sm text-slate-700">
+                      {m.email}
+                      <span className="ml-2 rounded-full bg-slate-200 px-2 py-0.5 text-xs text-slate-600">
+                        {m.role}
+                      </span>
+                      {m.user_id === myUserId && (
+                        <span className="ml-1 text-xs text-slate-400">(自分)</span>
+                      )}
+                    </div>
+                    {myRole === "owner" && m.user_id !== myUserId && (
+                      <div className="flex gap-3">
+                        <button
+                          onClick={() => transferOwner(m)}
+                          disabled={memberBusy}
+                          className="text-xs text-brand hover:underline disabled:opacity-40"
+                        >
+                          owner 移譲
+                        </button>
+                        {m.role !== "owner" && (
+                          <button
+                            onClick={() => removeMember(m)}
+                            disabled={memberBusy}
+                            className="text-xs text-red-500 hover:underline disabled:opacity-40"
+                          >
+                            削除
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+              {myRole === "owner" && (
+                <div className="mt-3 flex gap-2">
+                  <input
+                    value={inviteEmail}
+                    onChange={(e) => setInviteEmail(e.target.value)}
+                    placeholder="招待するメールアドレス"
+                    className="flex-1 rounded-xl border border-slate-300 p-2.5 text-sm focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
+                  />
+                  <button
+                    onClick={inviteMember}
+                    disabled={memberBusy || !inviteEmail.trim()}
+                    className="rounded-xl bg-brand px-4 py-2 text-sm font-semibold text-white hover:brightness-110 disabled:opacity-40"
+                  >
+                    招待
+                  </button>
+                </div>
+              )}
+              {memberMsg && <p className="mt-2 text-xs text-slate-600">{memberMsg}</p>}
+            </section>
+          )}
 
           <button
             onClick={save}
