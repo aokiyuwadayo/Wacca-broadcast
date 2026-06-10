@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { getServerDb } from "@/lib/supabase-server";
+import { getAccountId } from "@/lib/account";
 
 export const runtime = "nodejs";
 
@@ -9,11 +10,13 @@ export async function POST(req: NextRequest) {
     return Response.json({ error: "platform と text は必須です" }, { status: 400 });
   }
 
-  const { data: settings } = await getServerDb()
+  // ログイン中は自分のサークルの Webhook 設定を使う（未ログインなら従来どおり先頭1件）
+  const accountId = await getAccountId();
+  let settingsQuery = getServerDb()
     .from("settings")
-    .select("discord_webhook, teams_webhook, slack_announce_webhook")
-    .limit(1)
-    .maybeSingle();
+    .select("discord_webhook, teams_webhook, slack_announce_webhook");
+  if (accountId) settingsQuery = settingsQuery.eq("account_id", accountId);
+  const { data: settings } = await settingsQuery.limit(1).maybeSingle();
 
   if (!settings) {
     return Response.json({ error: "設定が見つかりません" }, { status: 404 });
