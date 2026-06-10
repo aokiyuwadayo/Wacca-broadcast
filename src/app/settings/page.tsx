@@ -42,21 +42,35 @@ export default function SettingsPage() {
   const [form, setForm] = useState<Settings>(EMPTY);
   const [schedules, setSchedules] = useState<RegularSchedule[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   // 接続テスト：送信中のPFと、PFごとの結果（届くまで「接続済み」にしない＝silent fail防止）
   const [testing, setTesting] = useState<string | null>(null);
   const [testResult, setTestResult] = useState<Record<string, { ok: boolean; msg: string }>>({});
 
   useEffect(() => {
-    Promise.all([
-      fetch("/api/settings").then((r) => r.json()),
-      fetch("/api/regular-schedules").then((r) => r.json()),
-    ]).then(([settingsData, schedulesData]) => {
-      if (settingsData?.circle_name !== undefined) setForm(settingsData);
-      if (Array.isArray(schedulesData)) setSchedules(schedulesData);
-      setLoading(false);
-    });
+    async function load() {
+      try {
+        const [settingsRes, schedulesRes] = await Promise.all([
+          fetch("/api/settings"),
+          fetch("/api/regular-schedules"),
+        ]);
+        const settingsData = await settingsRes.json();
+        const schedulesData = await schedulesRes.json();
+        if (!settingsRes.ok) throw new Error(settingsData.error ?? "設定を読み込めませんでした");
+        if (!schedulesRes.ok) throw new Error(schedulesData.error ?? "定期スケジュールを読み込めませんでした");
+        if (settingsData?.circle_name !== undefined) setForm(settingsData);
+        if (Array.isArray(schedulesData)) setSchedules(schedulesData);
+      } catch (error) {
+        setLoadError(error instanceof Error ? error.message : "設定の読み込みに失敗しました");
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    load();
   }, []);
 
   async function addSchedule() {
@@ -94,16 +108,25 @@ export default function SettingsPage() {
     setSchedules((prev) => prev.filter((_, i) => i !== idx));
   }
 
+  // 「保存しました」は API が成功を返したときだけ出す（silent fail 防止）
   async function save() {
     setSaving(true);
-    await fetch("/api/settings", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
-    });
-    setSaving(false);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+    setSaveError(null);
+    try {
+      const res = await fetch("/api/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error ?? "設定を保存できませんでした");
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch (error) {
+      setSaveError(error instanceof Error ? error.message : "設定の保存に失敗しました");
+    } finally {
+      setSaving(false);
+    }
   }
 
   const set = (k: keyof Settings) => (v: string) => setForm((f) => ({ ...f, [k]: v }));
@@ -152,6 +175,11 @@ export default function SettingsPage() {
         <p className="text-center text-sm text-slate-400">読み込み中…</p>
       ) : (
         <div className="space-y-5">
+          {loadError && (
+            <div className="rounded-2xl bg-amber-50 p-4 text-sm text-amber-800 ring-1 ring-amber-200">
+              {loadError}
+            </div>
+          )}
           <section className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
             <h2 className="mb-4 text-sm font-semibold text-slate-700">サークル情報</h2>
             <div className="space-y-3">
@@ -372,6 +400,11 @@ export default function SettingsPage() {
           >
             {saved ? "✅ 保存しました" : saving ? "保存中…" : "💾 保存する"}
           </button>
+          {saveError && (
+            <div className="rounded-2xl bg-red-50 p-4 text-sm text-red-700 ring-1 ring-red-200">
+              {saveError}
+            </div>
+          )}
         </div>
       )}
     </main>
