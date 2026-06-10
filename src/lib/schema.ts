@@ -30,6 +30,7 @@ export interface Platforms {
   line: string;
   teams: string;
   discord: string;
+  slack: string;
 }
 
 export interface ComposeResult {
@@ -142,8 +143,9 @@ export const COMPOSE_TOOL = {
           line: { type: "string" },
           teams: { type: "string" },
           discord: { type: "string" },
+          slack: { type: "string" },
         },
-        required: ["line", "teams", "discord"],
+        required: ["line", "teams", "discord", "slack"],
       },
     },
     required: ["json", "missing", "assumptions", "platforms"],

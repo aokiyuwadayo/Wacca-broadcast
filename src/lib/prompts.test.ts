@@ -44,10 +44,24 @@ describe("buildUserText", () => {
   });
 
   it("全PF指定 or 省略 → 配信先の絞り込み指示は入らない", () => {
-    const all = buildUserText({ kind: "activity", rawText: "x", platforms: ["line", "teams", "discord"] });
+    const all = buildUserText({
+      kind: "activity",
+      rawText: "x",
+      platforms: ["line", "teams", "discord", "slack"],
+    });
     const none = buildUserText({ kind: "activity", rawText: "x" });
     expect(all).not.toContain("生成する配信先");
     expect(none).not.toContain("生成する配信先");
+  });
+
+  it("slack を外すと不要PFとして明示される", () => {
+    const out = buildUserText({
+      kind: "activity",
+      rawText: "x",
+      platforms: ["line", "teams", "discord"],
+    });
+    expect(out).toContain("生成する配信先");
+    expect(out).toContain("slack");
   });
 });
 
@@ -57,6 +71,12 @@ describe("SYSTEM", () => {
     expect(SYSTEM).toContain("assumptions");
     expect(SYSTEM).toContain("(日付) 来週木曜");
     expect(SYSTEM).toContain("基準日が無く解決できない曖昧表現");
+  });
+
+  it("Slack 向けは mrkdwn 記法（*太字*・見出し記法禁止）を指示する", () => {
+    expect(SYSTEM).toContain("## slack");
+    expect(SYSTEM).toContain("mrkdwn");
+    expect(SYSTEM).toContain("アスタリスク1個");
   });
 
   it("LINE 文面は出力前に文字数を自己点検するよう指示する", () => {

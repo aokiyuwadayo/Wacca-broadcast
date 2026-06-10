@@ -12,6 +12,7 @@ type Settings = {
   discord_webhook: string;
   teams_webhook: string;
   slack_webhook: string;
+  slack_announce_webhook: string;
   style_memo: string;
 };
 
@@ -33,6 +34,7 @@ const EMPTY: Settings = {
   discord_webhook: "",
   teams_webhook: "",
   slack_webhook: "",
+  slack_announce_webhook: "",
   style_memo: "",
 };
 
@@ -61,7 +63,8 @@ export default function SettingsPage() {
         const schedulesData = await schedulesRes.json();
         if (!settingsRes.ok) throw new Error(settingsData.error ?? "設定を読み込めませんでした");
         if (!schedulesRes.ok) throw new Error(schedulesData.error ?? "定期スケジュールを読み込めませんでした");
-        if (settingsData?.circle_name !== undefined) setForm(settingsData);
+        // DB に新カラムが無い間も入力が undefined にならないよう EMPTY とマージ
+        if (settingsData?.circle_name !== undefined) setForm({ ...EMPTY, ...settingsData });
         if (Array.isArray(schedulesData)) setSchedules(schedulesData);
       } catch (error) {
         setLoadError(error instanceof Error ? error.message : "設定の読み込みに失敗しました");
@@ -131,14 +134,15 @@ export default function SettingsPage() {
 
   const set = (k: keyof Settings) => (v: string) => setForm((f) => ({ ...f, [k]: v }));
 
-  // 入力中の Webhook URL に実際にテスト1通を送る（保存と独立）
-  async function testWebhook(platform: "discord" | "teams" | "slack", url: string) {
+  // 入力中の Webhook URL に実際にテスト1通を送る（保存と独立）。
+  // resultKey は結果表示のキー（Slack はリマインド用と告知用で2欄あるため platform と分離）
+  async function testWebhook(platform: "discord" | "teams" | "slack", url: string, resultKey = platform as string) {
     if (!url.trim()) {
-      setTestResult((r) => ({ ...r, [platform]: { ok: false, msg: "URL を入力してください" } }));
+      setTestResult((r) => ({ ...r, [resultKey]: { ok: false, msg: "URL を入力してください" } }));
       return;
     }
-    setTesting(platform);
-    setTestResult((r) => ({ ...r, [platform]: { ok: false, msg: "送信中…" } }));
+    setTesting(resultKey);
+    setTestResult((r) => ({ ...r, [resultKey]: { ok: false, msg: "送信中…" } }));
     try {
       const res = await fetch("/api/test-webhook", {
         method: "POST",
@@ -148,12 +152,12 @@ export default function SettingsPage() {
       const data = await res.json();
       setTestResult((r) => ({
         ...r,
-        [platform]: res.ok
+        [resultKey]: res.ok
           ? { ok: true, msg: "✅ 届きました（接続OK）。実際の通知を確認してください" }
           : { ok: false, msg: `❌ ${data.error ?? "失敗しました"}` },
       }));
     } catch {
-      setTestResult((r) => ({ ...r, [platform]: { ok: false, msg: "❌ 通信に失敗しました" } }));
+      setTestResult((r) => ({ ...r, [resultKey]: { ok: false, msg: "❌ 通信に失敗しました" } }));
     } finally {
       setTesting(null);
     }
@@ -223,8 +227,24 @@ export default function SettingsPage() {
               </div>
               <div>
                 <Field
+                  label="Slack Webhook URL（告知投稿用）"
+                  placeholder="https://hooks.slack.com/services/...（例：#00_announce 向け）"
+                  value={form.slack_announce_webhook}
+                  onChange={set("slack_announce_webhook")}
+                />
+                <TestRow
+                  platform="slack"
+                  resultKey="slack_announce"
+                  url={form.slack_announce_webhook}
+                  testing={testing}
+                  result={testResult.slack_announce}
+                  onTest={testWebhook}
+                />
+              </div>
+              <div>
+                <Field
                   label="Slack Webhook URL（リマインド通知用）"
-                  placeholder="https://hooks.slack.com/services/..."
+                  placeholder="https://hooks.slack.com/services/...（例：#100_notifications 向け）"
                   value={form.slack_webhook}
                   onChange={set("slack_webhook")}
                 />
@@ -417,19 +437,22 @@ function TestRow({
   testing,
   result,
   onTest,
+  resultKey,
 }: {
   platform: "discord" | "teams" | "slack";
   url: string;
   testing: string | null;
   result?: { ok: boolean; msg: string };
-  onTest: (platform: "discord" | "teams" | "slack", url: string) => void;
+  onTest: (platform: "discord" | "teams" | "slack", url: string, resultKey?: string) => void;
+  resultKey?: string;
 }) {
-  const busy = testing === platform;
+  const key = resultKey ?? platform;
+  const busy = testing === key;
   return (
     <div className="mt-1.5 flex flex-wrap items-center gap-2">
       <button
         type="button"
-        onClick={() => onTest(platform, url)}
+        onClick={() => onTest(platform, url, key)}
         disabled={busy || !url.trim()}
         className="rounded-lg bg-slate-700 px-3 py-1 text-xs font-semibold text-white transition hover:brightness-110 disabled:opacity-40"
       >

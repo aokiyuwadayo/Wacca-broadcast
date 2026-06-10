@@ -15,7 +15,7 @@ async function sendSlack(webhookUrl: string, text: string) {
   });
 }
 
-async function sendWebhook(url: string, platform: "discord" | "teams", text: string) {
+async function sendWebhook(url: string, platform: "discord" | "teams" | "slack", text: string) {
   const body =
     platform === "discord" ? { content: text } : { text };
   const res = await fetch(url, {
@@ -53,7 +53,11 @@ export async function GET(req: Request) {
 
   for (const post of pendingPosts ?? []) {
     const webhookUrl =
-      post.platform === "discord" ? settings?.discord_webhook : settings?.teams_webhook;
+      post.platform === "discord"
+        ? settings?.discord_webhook
+        : post.platform === "slack"
+          ? settings?.slack_announce_webhook
+          : settings?.teams_webhook;
     if (!webhookUrl) {
       await db.from("scheduled_posts").update({ status: "failed", error: "Webhook URL 未設定" }).eq("id", post.id);
       continue;
