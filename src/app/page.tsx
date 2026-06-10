@@ -16,7 +16,15 @@ const PLATFORMS: Record<PlatformKey, { label: string; emoji: string; color: stri
   line: { label: "LINE", emoji: "💬", color: "#06C755" },
   teams: { label: "Teams", emoji: "💼", color: "#4B53BC" },
   discord: { label: "Discord", emoji: "🎮", color: "#5865F2" },
+  slack: { label: "Slack", emoji: "📨", color: "#4A154B" },
 };
+
+// Webhook 送信（即時/予約）に対応しているPF（LINE はコピペ運用のため除外）
+type PostablePlatform = "discord" | "teams" | "slack";
+const POSTABLE: readonly PostablePlatform[] = ["discord", "teams", "slack"];
+function isPostable(k: PlatformKey): k is PostablePlatform {
+  return (POSTABLE as readonly string[]).includes(k);
+}
 
 function todayISO(): string {
   return new Date().toISOString().slice(0, 10);
@@ -47,6 +55,7 @@ const SAMPLE_RESULT: ComposeResult = {
     line: "📣 起業部 今週の活動！\n━━━━━━━━\n🗓 6/4(木) 16:30〜\n📍 E棟3階 R教室\n🎒 持ち物：なし\n━━━━━━━━\n\n🎯 立花祭の出展内容を決める！\n\n✨ こんな人に来てほしい\n・アイデアを形にしたい人\n・0→1を体験したい人\n\n👉 来た人の声がそのまま出展に反映されます。\n初参加も大歓迎🙌",
     teams: "## 📢 起業部 活動のお知らせ（6/4）\n\n🗓 6月4日(木) 16:30〜（19:00 教室クローズ）\n📍 E棟3階 R教室\n\n### 🎯 今回のテーマ\n立花祭の出展内容を決めます。\n\n### 📋 当日の流れ\n・活動スライドで方向性を共有\n・出展アイデアを出し合う\n・出展内容を決定\n\n初参加・途中参加も歓迎です。",
     discord: "**📣 起業部 活動（6/4）**\n\n🗓 6/4(木) 16:30〜 / 📍 E棟3階 R教室\n\n🎯 **立花祭の出展内容を決める！**\nアイデア出し→方向性決定までやります。\n気軽に来てね〜 🙌",
+    slack: "*📣 起業部 活動のお知らせ（6/4）*\n\n🗓 6/4(木) 16:30〜\n📍 E棟3階 R教室\n\n*🎯 今回やること*\n立花祭の出展内容を決めます。\n・活動スライドで方向性を共有\n・出展アイデアを出し合う\n・出展内容を決定\n\n初参加も大歓迎です🙌",
   },
 };
 
@@ -67,15 +76,15 @@ export default function Home() {
   const [lastPayload, setLastPayload] = useState<Record<string, unknown> | null>(null);
   const [animEnabled, setAnimEnabled] = useState(true);
   // 使う配信先SNS（チェックを外すと生成・表示から除外）。localStorage 永続。
-  const [enabledPF, setEnabledPF] = useState<PlatformKey[]>(["line", "teams", "discord"]);
+  const [enabledPF, setEnabledPF] = useState<PlatformKey[]>(["line", "teams", "discord", "slack"]);
 
   // 即時送信の確認モーダル
-  const [postTarget, setPostTarget] = useState<{ platform: "discord" | "teams"; text: string } | null>(null);
+  const [postTarget, setPostTarget] = useState<{ platform: PostablePlatform; text: string } | null>(null);
   const [posting, setPosting] = useState(false);
   const [postResult, setPostResult] = useState<{ ok: boolean; msg: string } | null>(null);
 
   // 予約投稿モーダル
-  const [scheduleModal, setScheduleModal] = useState<{ platform: "discord" | "teams"; text: string } | null>(null);
+  const [scheduleModal, setScheduleModal] = useState<{ platform: PostablePlatform; text: string } | null>(null);
   const [scheduleDate, setScheduleDate] = useState("");
   const [scheduleSaving, setScheduleSaving] = useState(false);
   const [scheduleResult, setScheduleResult] = useState<string | null>(null);
@@ -824,10 +833,11 @@ export default function Home() {
                   ? "✅ コピーした！貼り付けてね"
                   : `📋 ${PLATFORMS[tab].label}版をコピー`}
               </button>
-              {(tab === "discord" || tab === "teams") && (
+              {isPostable(tab) && (
                 <>
                   <button
                     onClick={() => {
+                      if (!isPostable(tab)) return;
                       setPostResult(null);
                       setPostTarget({ platform: tab, text: currentText });
                     }}
@@ -837,6 +847,7 @@ export default function Home() {
                   </button>
                   <button
                     onClick={() => {
+                      if (!isPostable(tab)) return;
                       setScheduleResult(null);
                       setScheduleDate("");
                       setScheduleModal({ platform: tab, text: currentText });
@@ -920,7 +931,7 @@ export default function Home() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4 backdrop-blur-sm">
           <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
             <h2 className="mb-1 text-base font-bold text-slate-800">
-              📅 {scheduleModal.platform === "discord" ? "Discord" : "Teams"} 予約投稿
+              📅 {PLATFORMS[scheduleModal.platform].label} 予約投稿
             </h2>
             <p className="mb-3 text-xs text-slate-500">
               指定した日の朝8時（JST）に自動送信されます。
@@ -960,7 +971,7 @@ export default function Home() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4 backdrop-blur-sm">
           <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
             <h2 className="mb-1 text-base font-bold text-slate-800">
-              {postTarget.platform === "discord" ? "🎮 Discord" : "💼 Teams"} に送信しますか？
+              {PLATFORMS[postTarget.platform].emoji} {PLATFORMS[postTarget.platform].label} に送信しますか？
             </h2>
             <p className="mb-3 text-xs text-red-600 font-medium">
               ⚠️ 送信すると即座に投稿されます。内容を確認してください。

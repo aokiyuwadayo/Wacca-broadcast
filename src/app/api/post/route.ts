@@ -11,7 +11,7 @@ export async function POST(req: NextRequest) {
 
   const { data: settings } = await getServerDb()
     .from("settings")
-    .select("discord_webhook, teams_webhook")
+    .select("discord_webhook, teams_webhook, slack_announce_webhook")
     .limit(1)
     .maybeSingle();
 
@@ -47,6 +47,23 @@ export async function POST(req: NextRequest) {
     });
     if (!res.ok) {
       return Response.json({ error: `Teams への送信に失敗しました (${res.status})` }, { status: 500 });
+    }
+    return Response.json({ ok: true });
+  }
+
+  if (platform === "slack") {
+    // 告知投稿用（リマインド通知用の slack_webhook とは別チャンネル想定）
+    const webhookUrl = settings.slack_announce_webhook;
+    if (!webhookUrl) {
+      return Response.json({ error: "Slack Webhook URL（告知投稿用）が未設定です" }, { status: 400 });
+    }
+    const res = await fetch(webhookUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text }),
+    });
+    if (!res.ok) {
+      return Response.json({ error: `Slack への送信に失敗しました (${res.status})` }, { status: 500 });
     }
     return Response.json({ ok: true });
   }

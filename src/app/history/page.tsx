@@ -99,7 +99,7 @@ export default function HistoryPage() {
               {/* 展開：各PF文面 */}
               {open && (
                 <div className="border-t border-slate-100 px-5 pb-5 pt-4">
-                  {(["line", "teams", "discord"] as const).map((pf) => {
+                  {(["line", "teams", "discord", "slack"] as const).map((pf) => {
                     const text = row.platforms?.[pf];
                     if (!text) return null;
                     const key = `${row.id}-${pf}`;
@@ -107,7 +107,13 @@ export default function HistoryPage() {
                       <div key={pf} className="mb-4">
                         <div className="mb-1 flex items-center justify-between">
                           <span className="text-xs font-semibold uppercase text-slate-400">
-                            {pf === "line" ? "💬 LINE" : pf === "teams" ? "💼 Teams" : "🎮 Discord"}
+                            {pf === "line"
+                              ? "💬 LINE"
+                              : pf === "teams"
+                                ? "💼 Teams"
+                                : pf === "discord"
+                                  ? "🎮 Discord"
+                                  : "📨 Slack"}
                           </span>
                           <button
                             onClick={() => copyText(text, key)}
