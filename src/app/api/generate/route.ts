@@ -3,6 +3,7 @@ import { compose } from "@/lib/anthropic";
 import { buildUserText } from "@/lib/prompts";
 import { fetchEventSource } from "@/lib/fetch-url";
 import { getServerDbOrNull } from "@/lib/supabase-server";
+import { getAccountId, accountFields } from "@/lib/account";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -27,14 +28,22 @@ export async function POST(req: NextRequest) {
       delete body.url;
     }
 
-    // 設定（プロフィール）＋過去の告知文（文体学習 few-shot）を取得
+    // 設定（プロフィール）＋過去の告知文（文体学習 few-shot）を取得。
+    // ログイン中は自分のサークルの設定・履歴だけを使う（未ログインなら従来どおり）
+    const accountId = await getAccountId();
     let profile: Record<string, string> | undefined;
     let examples: Array<{ title: string; line: string }> | undefined;
     if (db) {
       try {
+        let settingsQuery = db.from("settings").select("*");
+        let pastQuery = db.from("broadcasts").select("title, platforms");
+        if (accountId) {
+          settingsQuery = settingsQuery.eq("account_id", accountId);
+          pastQuery = pastQuery.eq("account_id", accountId);
+        }
         const [{ data: settingsData }, { data: pastData }] = await Promise.all([
-          db.from("settings").select("*").limit(1).maybeSingle(),
-          db.from("broadcasts").select("title, platforms").order("created_at", { ascending: false }).limit(5),
+          settingsQuery.limit(1).maybeSingle(),
+          pastQuery.order("created_at", { ascending: false }).limit(5),
         ]);
         if (settingsData) profile = settingsData;
         if (pastData && pastData.length > 0) {
@@ -61,6 +70,7 @@ export async function POST(req: NextRequest) {
           title: result.json.title,
           json: result.json,
           platforms: result.platforms,
+          ...accountFields(accountId),
         });
         if (dbError) console.error("[Supabase] insert error:", dbError);
       } catch (e) {
